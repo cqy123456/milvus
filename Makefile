@@ -19,8 +19,8 @@ INSTALL_PATH := $(PWD)/bin
 LIBRARY_PATH := $(PWD)/lib
 OS := $(shell uname -s)
 ARCH := $(shell arch)
-mode = Debug
-disk_index = OFF
+mode = Release
+disk_index = ON
 
 
 export GIT_BRANCH=master

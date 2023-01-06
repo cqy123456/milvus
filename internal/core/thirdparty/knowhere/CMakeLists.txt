@@ -35,11 +35,11 @@ macro(build_knowhere)
     if ( BUILD_DISK_ANN STREQUAL "ON" )
         set(KNOWHERE_CMAKE_ARGS
                 ${KNOWHERE_CMAKE_ARGS}
-            -DKNOWHERE_WITH_DISKANN=true)
+            -DWITH_DISKANN=ON)
     else ()
         set(KNOWHERE_CMAKE_ARGS
                 ${KNOWHERE_CMAKE_ARGS}
-            -DKNOWHERE_WITH_DISKANN=false)
+            -DWITH_DISKANN=OFF)
     endif ()
 
     externalproject_add(knowhere_ep
@@ -49,7 +49,7 @@ macro(build_knowhere)
             # GIT_TAG         main
             #URL             ${KNOWHERE_SOURCE_URL}
             #URL_MD5         ${KNOWHERE_SOURCE_MD5}
-            SOURCE_DIR      /home/martian/knowhere
+            SOURCE_DIR      /home/ubuntu/knowhere
             CMAKE_ARGS      ${KNOWHERE_CMAKE_ARGS}
             BUILD_COMMAND   ${MAKE} ${MAKE_BUILD_ARGS}
             PREFIX          ${CMAKE_BINARY_DIR}/3rdparty_download/knowhere-subbuild
