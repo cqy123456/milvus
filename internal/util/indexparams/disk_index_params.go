@@ -132,24 +132,24 @@ func SetDiskIndexBuildParams(indexParams map[string]string, numRows int64) error
 // SetDiskIndexLoadParams set disk index load params with ratio params on queryNode
 // QueryNode cal load params with ratio params ans cpu count...
 func SetDiskIndexLoadParams(indexParams map[string]string, numRows int64) error {
-	dimStr, ok := indexParams["dim"]
-	if !ok {
-		// type param dim has been put into index params before build index
-		return fmt.Errorf("type param dim not exist")
-	}
-	dim, err := strconv.ParseInt(dimStr, 10, 64)
-	if err != nil {
-		return err
-	}
+	// dimStr, ok := indexParams["dim"]
+	// if !ok {
+	// 	// type param dim has been put into index params before build index
+	// 	return fmt.Errorf("type param dim not exist")
+	// }
+	//dim, err := strconv.ParseInt(dimStr, 10, 64)
+	//if err != nil {
+	//	return err
+	//}
 
-	searchCacheBudgetGBRatioStr, ok := indexParams[SearchCacheBudgetRatioKey]
-	if !ok {
-		return fmt.Errorf("index param searchCacheBudgetGBRatio not exist")
-	}
-	searchCacheBudgetGBRatio, err := strconv.ParseFloat(searchCacheBudgetGBRatioStr, 64)
-	if err != nil {
-		return err
-	}
+	// searchCacheBudgetGBRatioStr, ok := indexParams[SearchCacheBudgetRatioKey]
+	// if !ok {
+	// 	return fmt.Errorf("index param searchCacheBudgetGBRatio not exist")
+	// }
+	//searchCacheBudgetGBRatio, err := strconv.ParseFloat(searchCacheBudgetGBRatioStr, 64)
+	//if err != nil {
+	//	return err
+	//}
 	loadNumThreadRatioStr, ok := indexParams[NumLoadThreadRatioKey]
 	if !ok {
 		return fmt.Errorf("index param loadNumThreadRatio not exist")
@@ -167,8 +167,9 @@ func SetDiskIndexLoadParams(indexParams map[string]string, numRows int64) error 
 		return err
 	}
 
-	indexParams[SearchCacheBudgetKey] = fmt.Sprintf("%f",
-		float32(getRowDataSizeOfFloatVector(numRows, dim))*float32(searchCacheBudgetGBRatio)/(1<<30))
+	// indexParams[SearchCacheBudgetKey] = fmt.Sprintf("%f",
+	// 	float32(getRowDataSizeOfFloatVector(numRows, dim))*float32(searchCacheBudgetGBRatio)/(1<<30))
+	indexParams[SearchCacheBudgetKey] = fmt.Sprintf("%f", float32(0))
 
 	numLoadThread := int(float32(hardware.GetCPUNum()) * float32(loadNumThreadRatio))
 	if numLoadThread > MaxLoadThread {
