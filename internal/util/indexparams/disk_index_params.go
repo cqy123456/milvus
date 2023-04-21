@@ -168,7 +168,7 @@ func SetDiskIndexLoadParams(indexParams map[string]string, numRows int64) error 
 	}
 
 	indexParams[SearchCacheBudgetKey] = fmt.Sprintf("%f",
-		float32(getRowDataSizeOfFloatVector(numRows, dim))*float32(searchCacheBudgetGBRatio)/(1<<30))
+		float32(0))
 
 	numLoadThread := int(float32(hardware.GetCPUNum()) * float32(loadNumThreadRatio))
 	if numLoadThread > MaxLoadThread {
