@@ -11,15 +11,15 @@
 # or implied. See the License for the specific language governing permissions and limitations under the License.
 #-------------------------------------------------------------------------------
 
-set( KNOWHERE_VERSION v1.3.12 )
-set( KNOWHERE_SOURCE_MD5 "62097fdcea634c0cd116bd9a6b94be8b")
+set( KNOWHERE_VERSION knowhere-0426 )
+set( KNOWHERE_SOURCE_MD5 "59d0f463c95cb7c8a16887a0a9f22780")
 
-if ( DEFINED ENV{MILVUS_KNOWHERE_URL} )
-    set( KNOWHERE_SOURCE_URL "$ENV{MILVUS_KNOWHERE_URL}" )
-else ()
-    set( KNOWHERE_SOURCE_URL
-        "https://github.com/milvus-io/knowhere/archive/refs/tags/${KNOWHERE_VERSION}.tar.gz" )
-endif ()
+#if ( DEFINED ENV{MILVUS_KNOWHERE_URL} )
+#    set( KNOWHERE_SOURCE_URL "$ENV{MILVUS_KNOWHERE_URL}" )
+#else ()
+set( KNOWHERE_SOURCE_URL
+    "https://github.com/cqy123456/knowhere/archive/refs/tags/knowhere-0426.tar.gz" )
+#endif ()
 
 macro(build_knowhere)
     message(STATUS "Building knowhere-${KNOWHERE_VERSION} from source")
@@ -43,8 +43,8 @@ macro(build_knowhere)
     endif ()
 
     externalproject_add(knowhere_ep
-            # GIT_REPOSITORY  "https://github.com/milvus-io/knowhere.git"
-            # GIT_TAG         main
+            #GIT_REPOSITORY  "https://github.com/cqy123456/knowhere.git"
+            #GIT_TAG         ${KNOWHERE_VERSION}
             URL             ${KNOWHERE_SOURCE_URL}
             URL_MD5         ${KNOWHERE_SOURCE_MD5}
             CMAKE_ARGS      ${KNOWHERE_CMAKE_ARGS}
