@@ -126,7 +126,9 @@ func (loader *segmentLoader) LoadSegment(ctx context.Context, req *querypb.LoadS
 					if err != nil {
 						return nil, err
 					}
+					log.Info("indexparams", zap.Any("indexparams", indexParams))
 				}
+				fieldIndexInfo.IndexParams = funcutil.Map2KeyValuePair(indexParams)
 			}
 		}
 	}
