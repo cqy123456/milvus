@@ -89,6 +89,7 @@ func (loader *segmentLoader) getFieldType(segment *Segment, fieldID FieldID) (sc
 }
 
 func (loader *segmentLoader) LoadSegment(ctx context.Context, req *querypb.LoadSegmentsRequest, segmentType segmentType) ([]UniqueID, error) {
+	log.Info("req :", zap.Any("req", req))
 	if req.Base == nil {
 		return nil, fmt.Errorf("nil base message when load segment, collectionID = %d", req.CollectionID)
 	}
@@ -114,6 +115,22 @@ func (loader *segmentLoader) LoadSegment(ctx context.Context, req *querypb.LoadS
 		}
 		return minValue
 	}
+
+	// append diskann params
+	for _, loadInfo := range req.Infos { 
+		for _, fieldIndexInfo := range loadInfo.IndexInfos {
+			if fieldIndexInfo.EnableIndex {
+				indexParams := funcutil.KeyValuePair2Map(fieldIndexInfo.IndexParams)
+				if indexParams["index_type"] == indexparamcheck.IndexDISKANN {
+					err := indexparams.SetDiskIndexLoadParams(&Params, indexParams, fieldIndexInfo.NumRows)
+					if err != nil {
+						return nil, err
+					}
+				}
+			}
+		}
+	}
+
 	concurrencyLevel := min(runtime.GOMAXPROCS(0), len(req.Infos))
 	for ; concurrencyLevel > 1; concurrencyLevel /= 2 {
 		err := loader.checkSegmentSize(req.CollectionID, req.Infos, concurrencyLevel)
