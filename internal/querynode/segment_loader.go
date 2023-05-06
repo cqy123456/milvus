@@ -727,16 +727,16 @@ func GetStorageSizeByIndexInfo(indexInfo *querypb.FieldIndexInfo) (uint64, uint6
 		if err != nil {
 			return 0, 0, fmt.Errorf("%s not exist in index params", indexparams.PQCodeBudgetRatioKey)
 		}
-		searchCacheProportion, err := strconv.ParseFloat(indexParams[indexparams.SearchCacheBudgetRatioKey], 64)
+		searchCacheProportion, err := strconv.ParseFloat(indexParams[indexparams.SearchCacheBudgetKey], 64)
 		if err != nil {
-			return 0, 0, fmt.Errorf("%s not exist in index params", indexparams.SearchCacheBudgetRatioKey)
+			return 0, 0, fmt.Errorf("%s not exist in index params", indexparams.SearchCacheBudgetKey)
 		}
 		dim, err := strconv.ParseInt(indexParams["dim"], 10, 64)
 		if err != nil {
 			return 0, 0, fmt.Errorf("dim not exist in index params")
 		}
 		rawDataSize := indexparams.GetRowDataSizeOfFloatVector(indexInfo.NumRows, dim)
-		neededMemSize := float64(rawDataSize) * (PQCodeProportion + searchCacheProportion*DiskANNCacheExpansionFactor)
+		neededMemSize := float64(rawDataSize) * (PQCodeProportion) + searchCacheProportion*DiskANNCacheExpansionFactor*(1024*1024 *1024)
 		return uint64(neededMemSize), uint64(indexInfo.IndexSize), nil
 	}
 
