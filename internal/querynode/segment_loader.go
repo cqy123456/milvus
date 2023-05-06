@@ -48,6 +48,7 @@ import (
 	"github.com/milvus-io/milvus/internal/util/funcutil"
 	"github.com/milvus-io/milvus/internal/util/hardware"
 	"github.com/milvus-io/milvus/internal/util/indexparamcheck"
+	"github.com/milvus-io/milvus/internal/util/indexparams"
 	"github.com/milvus-io/milvus/internal/util/timerecord"
 	"github.com/milvus-io/milvus/internal/util/tsoutil"
 	"github.com/milvus-io/milvus/internal/util/typeutil"
@@ -56,7 +57,7 @@ import (
 )
 
 const (
-	UsedDiskMemoryRatio = 4
+	DiskANNCacheExpansionFactor = 1.5
 )
 
 var (
@@ -699,8 +700,24 @@ func GetStorageSizeByIndexInfo(indexInfo *querypb.FieldIndexInfo) (uint64, uint6
 	if err != nil {
 		return 0, 0, fmt.Errorf("index type not exist in index params")
 	}
+	
 	if indexType == indexparamcheck.IndexDISKANN {
-		neededMemSize := indexInfo.IndexSize / UsedDiskMemoryRatio
+		indexParams := funcutil.KeyValuePair2Map(indexInfo.IndexParams)
+		log.Info("indexParams :", zap.Any("indexParams", indexParams));
+		PQCodeProportion, err := strconv.ParseFloat(indexParams[indexparams.PQCodeBudgetRatioKey], 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("%s not exist in index params", indexparams.PQCodeBudgetRatioKey)
+		}
+		searchCacheProportion, err := strconv.ParseFloat(indexParams[indexparams.SearchCacheBudgetRatioKey], 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("%s not exist in index params", indexparams.SearchCacheBudgetRatioKey)
+		}
+		dim, err := strconv.ParseInt(indexParams["dim"], 10, 64)
+		if err != nil {
+			return 0, 0, fmt.Errorf("dim not exist in index params")
+		}
+		rawDataSize := indexparams.GetRowDataSizeOfFloatVector(indexInfo.NumRows, dim)
+		neededMemSize := float64(rawDataSize) * (PQCodeProportion + searchCacheProportion*DiskANNCacheExpansionFactor)
 		return uint64(neededMemSize), uint64(indexInfo.IndexSize), nil
 	}
 
@@ -752,8 +769,14 @@ func (loader *segmentLoader) checkSegmentSize(collectionID UniqueID, segmentLoad
 						zap.Int64("indexBuildID", fieldIndexInfo.BuildID))
 					return err
 				}
-				usedMemAfterLoad += neededMemSize
 				usedLocalSizeAfterLoad += neededDiskSize
+				// diskann not need to copy data
+				indexType, _ := funcutil.GetAttrByKeyFromRepeatedKV("index_type", fieldIndexInfo.IndexParams)
+				if indexType == indexparamcheck.IndexDISKANN {
+					usedMemAfterLoad += uint64(float64(neededMemSize) / Params.QueryNodeCfg.LoadMemoryUsageFactor)
+				} else {
+					usedMemAfterLoad += neededMemSize
+				}
 			} else {
 				usedMemAfterLoad += uint64(funcutil.GetFieldSizeFromFieldBinlog(fieldBinlog))
 			}
