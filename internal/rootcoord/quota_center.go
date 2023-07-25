@@ -261,11 +261,11 @@ func (q *QuotaCenter) syncMetrics() error {
 	if err != nil {
 		return err
 	}
-	//log.Debug("QuotaCenter sync metrics done",
-	//	zap.Any("dataNodeMetrics", q.dataNodeMetrics),
-	//	zap.Any("queryNodeMetrics", q.queryNodeMetrics),
-	//	zap.Any("proxyMetrics", q.proxyMetrics),
-	//	zap.Any("dataCoordMetrics", q.dataCoordMetrics))
+	log.Debug("QuotaCenter sync metrics done",
+		zap.Any("dataNodeMetrics", q.dataNodeMetrics),
+		zap.Any("queryNodeMetrics", q.queryNodeMetrics),
+		zap.Any("proxyMetrics", q.proxyMetrics),
+		zap.Any("dataCoordMetrics", q.dataCoordMetrics))
 	return nil
 }
 
@@ -465,6 +465,10 @@ func (q *QuotaCenter) calculateWriteRates() error {
 		}
 		q.guaranteeMinRate(Params.QuotaConfig.DMLMinInsertRatePerCollection, internalpb.RateType_DMLInsert)
 		q.guaranteeMinRate(Params.QuotaConfig.DMLMinDeleteRatePerCollection, internalpb.RateType_DMLDelete)
+
+		log.Debug("QuotaCenter cool write rates off done",
+			zap.Int64("collectionID", collection),
+			zap.Any("queryRate", q.currentRates[collection][internalpb.RateType_DMLInsert]))
 	}
 
 	return nil
