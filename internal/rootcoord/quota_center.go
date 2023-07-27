@@ -584,7 +584,7 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			continue
 		}
 		//factor := (queryNodeMemoryHighWaterLevel - memoryWaterLevel) / (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel)
-		factor := distuv.Normal{
+		factor := 1 - distuv.Normal{
 			Mu:    (queryNodeMemoryHighWaterLevel + queryNodeMemoryLowWaterLevel) / 2.0,
 			Sigma: (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel) / 5.16,
 		}.CDF(memoryWaterLevel)
@@ -615,7 +615,7 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			continue
 		}
 		//factor := (dataNodeMemoryHighWaterLevel - memoryWaterLevel) / (dataNodeMemoryHighWaterLevel - dataNodeMemoryLowWaterLevel)
-		factor := distuv.Normal{
+		factor := 1 - distuv.Normal{
 			Mu:    (dataNodeMemoryHighWaterLevel + dataNodeMemoryLowWaterLevel) / 2.0,
 			Sigma: (dataNodeMemoryHighWaterLevel - dataNodeMemoryLowWaterLevel) / 5.16,
 		}.CDF(memoryWaterLevel)
