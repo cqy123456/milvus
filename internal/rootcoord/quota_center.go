@@ -26,6 +26,7 @@ import (
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"gonum.org/v1/gonum/stat/distuv"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
@@ -582,7 +583,11 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			updateCollectionFactor(0, metric.Effect.CollectionIDs)
 			continue
 		}
-		factor := (queryNodeMemoryHighWaterLevel - memoryWaterLevel) / (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel)
+		//factor := (queryNodeMemoryHighWaterLevel - memoryWaterLevel) / (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel)
+		factor := distuv.Normal{
+			Mu:    (queryNodeMemoryHighWaterLevel + queryNodeMemoryLowWaterLevel) / 2.0,
+			Sigma: (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel) / 5.16,
+		}.CDF(memoryWaterLevel)
 		updateCollectionFactor(factor, metric.Effect.CollectionIDs)
 		log.RatedWarn(10, "QuotaCenter: QueryNode memory to low water level, limit writing rate",
 			zap.String("Node", fmt.Sprintf("%s-%d", typeutil.QueryNodeRole, nodeID)),
@@ -590,7 +595,8 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			zap.Uint64("UsedMem", metric.Hms.MemoryUsage),
 			zap.Uint64("TotalMem", metric.Hms.Memory),
 			zap.Float64("memoryWaterLevel", memoryWaterLevel),
-			zap.Float64("memoryLowWaterLevel", queryNodeMemoryLowWaterLevel))
+			zap.Float64("memoryLowWaterLevel", queryNodeMemoryLowWaterLevel),
+			zap.Float64("dml factor", factor))
 	}
 	for nodeID, metric := range q.dataNodeMetrics {
 		memoryWaterLevel := float64(metric.Hms.MemoryUsage) / float64(metric.Hms.Memory)
@@ -608,14 +614,19 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			updateCollectionFactor(0, metric.Effect.CollectionIDs)
 			continue
 		}
-		factor := (dataNodeMemoryHighWaterLevel - memoryWaterLevel) / (dataNodeMemoryHighWaterLevel - dataNodeMemoryLowWaterLevel)
+		//factor := (dataNodeMemoryHighWaterLevel - memoryWaterLevel) / (dataNodeMemoryHighWaterLevel - dataNodeMemoryLowWaterLevel)
+		factor := distuv.Normal{
+			Mu:    (dataNodeMemoryHighWaterLevel + dataNodeMemoryLowWaterLevel) / 2.0,
+			Sigma: (dataNodeMemoryHighWaterLevel - dataNodeMemoryLowWaterLevel) / 5.16,
+		}.CDF(memoryWaterLevel)
 		log.RatedWarn(10, "QuotaCenter: DataNode memory to low water level, limit writing rate",
 			zap.String("Node", fmt.Sprintf("%s-%d", typeutil.DataNodeRole, nodeID)),
 			zap.Int64s("collections", metric.Effect.CollectionIDs),
 			zap.Uint64("UsedMem", metric.Hms.MemoryUsage),
 			zap.Uint64("TotalMem", metric.Hms.Memory),
 			zap.Float64("memoryWaterLevel", memoryWaterLevel),
-			zap.Float64("memoryLowWaterLevel", dataNodeMemoryLowWaterLevel))
+			zap.Float64("memoryLowWaterLevel", dataNodeMemoryLowWaterLevel),
+			zap.Float64("dml factor", factor))
 		updateCollectionFactor(factor, metric.Effect.CollectionIDs)
 	}
 	return collectionFactor
