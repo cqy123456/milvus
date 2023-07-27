@@ -231,4 +231,31 @@ AssembleIndexDatas(std::map<std::string, storage::FieldDataPtr>& index_datas) {
     }
 }
 
+void
+AssembleIndexDatasToBinarySet(std::map<std::string, storage::FieldDataPtr>& index_datas, BinarySet& binary_set) {
+    if (index_datas.find(INDEX_FILE_SLICE_META) != index_datas.end()) {
+        auto slice_meta = index_datas.at(INDEX_FILE_SLICE_META);
+        Config meta_data = Config::parse(std::string(static_cast<const char*>(slice_meta->Data()), slice_meta->Size()));
+
+        for (auto& item : meta_data[META]) {
+            std::string prefix = item[NAME];
+            int slice_num = item[SLICE_NUM];
+            auto total_len = static_cast<size_t>(item[TOTAL_LEN]);
+            auto load_data = std::shared_ptr<uint8_t []>(new uint8_t[total_len]);
+            size_t offest = 0;
+            for (auto i = 0; i < slice_num; ++i) {
+                std::string file_name = GenSlicedFileName(prefix, i);
+                AssertInfo(index_datas.find(file_name) != index_datas.end(), "lost index slice data");
+                auto data = index_datas.at(file_name);
+                auto len = data->Size();
+                std::copy_n(static_cast<const int8_t*>(data->Data()), len, load_data.get() + offest);
+                index_datas.erase(file_name);
+                offest += len;
+            }        
+            binary_set.Append(prefix, load_data, total_len);
+        }
+    }
+}
+
+
 }  // namespace milvus::index

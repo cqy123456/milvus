@@ -127,4 +127,7 @@ ParseConfigFromIndexParams(const std::map<std::string, std::string>& index_param
 void
 AssembleIndexDatas(std::map<std::string, storage::FieldDataPtr>& index_datas);
 
+void
+AssembleIndexDatasToBinarySet(std::map<std::string, storage::FieldDataPtr>& index_datas, BinarySet& binary_set);
+
 }  // namespace milvus::index
