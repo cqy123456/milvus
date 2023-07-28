@@ -469,6 +469,8 @@ func (q *QuotaCenter) calculateWriteRates() error {
 
 		log.Debug("QuotaCenter cool write rates off done",
 			zap.Int64("collectionID", collection),
+			zap.Any("limit factor", Limit(factor)),
+			zap.Any("factor", factor),
 			zap.Any("queryRate", q.currentRates[collection][internalpb.RateType_DMLInsert]))
 	}
 
