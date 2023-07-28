@@ -571,6 +571,10 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 	}
 	for nodeID, metric := range q.queryNodeMetrics {
 		memoryWaterLevel := float64(metric.Hms.MemoryUsage) / float64(metric.Hms.Memory)
+		peakMemoryWaterLevel := (float64(metric.Hms.MemoryUsage) + (1024 * 1024 * 1024 * 0.125 * 1.25 * 1.6)) / float64(metric.Hms.Memory)
+		if peakMemoryWaterLevel >= queryNodeMemoryHighWaterLevel {
+			peakMemoryWaterLevel = queryNodeMemoryHighWaterLevel * 0.99
+		}
 		if memoryWaterLevel <= queryNodeMemoryLowWaterLevel {
 			continue
 		}
@@ -589,7 +593,7 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 		factor := 1 - distuv.Normal{
 			Mu:    (queryNodeMemoryHighWaterLevel + queryNodeMemoryLowWaterLevel) / 2.0,
 			Sigma: (queryNodeMemoryHighWaterLevel - queryNodeMemoryLowWaterLevel) / 5.16,
-		}.CDF(memoryWaterLevel)
+		}.CDF(peakMemoryWaterLevel)
 		updateCollectionFactor(factor, metric.Effect.CollectionIDs)
 		log.RatedWarn(10, "QuotaCenter: QueryNode memory to low water level, limit writing rate",
 			zap.String("Node", fmt.Sprintf("%s-%d", typeutil.QueryNodeRole, nodeID)),
