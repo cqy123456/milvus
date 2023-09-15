@@ -165,7 +165,8 @@ TEST(Growing, FillData) {
         EXPECT_EQ(int8_result->scalars().int_data().data_size(), num_inserted);
         EXPECT_EQ(int16_result->scalars().int_data().data_size(), num_inserted);
         EXPECT_EQ(int32_result->scalars().int_data().data_size(), num_inserted);
-        EXPECT_EQ(int64_result->scalars().long_data().data_size(), num_inserted);
+        EXPECT_EQ(int64_result->scalars().long_data().data_size(),
+                  num_inserted);
         EXPECT_EQ(float_result->scalars().float_data().data_size(),
                   num_inserted);
         EXPECT_EQ(double_result->scalars().double_data().data_size(),

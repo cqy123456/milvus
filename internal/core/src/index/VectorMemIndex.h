@@ -22,7 +22,9 @@
 #include <vector>
 #include <boost/dynamic_bitset.hpp>
 #include "knowhere/factory.h"
+#include "knowhere/utils.h"
 #include "index/VectorIndex.h"
+#include "common/BitsetView.h"
 #include "storage/MemFileManagerImpl.h"
 
 namespace milvus::index {
@@ -74,6 +76,9 @@ class VectorMemIndex : public VectorIndex {
  protected:
     virtual void
     LoadWithoutAssemble(const BinarySet& binary_set, const Config& config);
+
+    virtual void
+    LoadWithoutAssemble(BinarySet&& binary_set, const Config& config);
 
  private:
     void

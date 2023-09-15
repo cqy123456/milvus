@@ -1606,8 +1606,11 @@ TEST(CApiTest, LoadIndexInfo) {
     indexing.Add(*database, conf);
     EXPECT_EQ(indexing.Count(), N);
     EXPECT_EQ(indexing.Dim(), DIM);
-    knowhere::BinarySet binary_set;
-    indexing.Serialize(binary_set);
+
+    knowhere::IndexSequence index_seq;
+    indexing.Serialize(index_seq);
+    milvus::BinarySet binary_set;
+    binary_set.Append(indexing.Type(), std::move(index_seq));
     CBinarySet c_binary_set = (CBinarySet)&binary_set;
 
     void* c_load_index_info = nullptr;
@@ -1655,8 +1658,10 @@ TEST(CApiTest, LoadIndexSearch) {
     EXPECT_EQ(indexing.Dim(), DIM);
 
     // serializ index to binarySet
-    knowhere::BinarySet binary_set;
-    indexing.Serialize(binary_set);
+    knowhere::IndexSequence index_seq;
+    indexing.Serialize(index_seq);
+    milvus::BinarySet binary_set;
+    binary_set.Append(indexing.Type(), std::move(index_seq));
 
     // fill loadIndexInfo
     milvus::segcore::LoadIndexInfo load_index_info;

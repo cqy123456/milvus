@@ -78,7 +78,7 @@ VectorDiskAnnIndex<T>::Load(const Config& config) {
                "index file paths is empty when load disk ann index data");
     file_manager_->CacheIndexToDisk(index_files.value());
 
-    auto stat = index_.Deserialize(knowhere::BinarySet(), load_config);
+    auto stat = index_.Deserialize(knowhere::IndexSequence(), load_config);
     if (stat != knowhere::Status::success)
         PanicCodeInfo(
             ErrorCode::UnexpectedError,

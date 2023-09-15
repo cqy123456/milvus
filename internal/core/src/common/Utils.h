@@ -201,8 +201,8 @@ KnowhereStatusString(knowhere::Status status) {
             return "arithmetic overflow";
         case knowhere::Status::raft_inner_error:
             return "raft inner error";
-        case knowhere::Status::invalid_binary_set:
-            return "invalid binary set";
+        case knowhere::Status::invalid_index_sequence:
+            return "invalid index binary sequence";
         default:
             return "unexpected status";
     }

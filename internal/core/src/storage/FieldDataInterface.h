@@ -69,6 +69,9 @@ class FieldDataBase {
     virtual void
     Reserve(size_t cap) = 0;
 
+    virtual void*
+    Relinquish() = 0;
+
  public:
     virtual int64_t
     get_num_rows() const = 0;
@@ -172,6 +175,14 @@ class FieldDataImpl : public FieldDataBase {
             num_rows_ = cap;
             field_data_.resize(num_rows_ * dim_);
         }
+    }
+
+    void*
+    Relinquish() override {
+        std::lock_guard lck(num_rows_mutex_);
+        auto data = folly::relinquish(field_data_);
+        num_rows_ = 0;
+        return data;
     }
 
  public:
