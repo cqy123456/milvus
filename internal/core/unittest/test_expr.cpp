@@ -1152,7 +1152,7 @@ TEST(Expr, TestCompareWithScalarIndex) {
     auto i64_fid = schema->AddDebugField("age64", DataType::INT64);
     schema->set_primary_field_id(i64_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     int N = 1000;
     auto raw_data = DataGen(schema, N);
     segcore::LoadIndexInfo load_index_info;
@@ -1230,7 +1230,7 @@ TEST(Expr, TestCompareExpr) {
     auto str3_fid = schema->AddDebugField("string3", DataType::VARCHAR);
     schema->set_primary_field_id(str1_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     size_t N = 1000;
     auto raw_data = DataGen(schema, N);
     auto fields = schema->get_fields();
@@ -1370,7 +1370,7 @@ TEST(Expr, TestMultiLogicalExprsOptimization) {
     auto str1_fid = schema->AddDebugField("string1", DataType::VARCHAR);
     schema->set_primary_field_id(str1_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     size_t N = 1000000;
     auto raw_data = DataGen(schema, N);
     auto fields = schema->get_fields();
@@ -1469,7 +1469,7 @@ TEST(Expr, TestExprs) {
     auto double_fid = schema->AddDebugField("double", DataType::DOUBLE);
     schema->set_primary_field_id(str1_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     int N = 1000000;
     auto raw_data = DataGen(schema, N);
 
@@ -1675,7 +1675,7 @@ TEST(Expr, TestCompareWithScalarIndexMaris) {
     auto str2_fid = schema->AddDebugField("string2", DataType::VARCHAR);
     schema->set_primary_field_id(str1_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     int N = 1000;
     auto raw_data = DataGen(schema, N);
     segcore::LoadIndexInfo load_index_info;
@@ -2436,7 +2436,7 @@ TEST(Expr, TestBinaryArithOpEvalRangeWithScalarSortIndex) {
     auto double_fid = schema->AddDebugField("age_double", DataType::DOUBLE);
     schema->set_primary_field_id(i64_fid);
 
-    auto seg = CreateSealedSegment(schema);
+    auto seg = CreateSealedSegment(schema, empty_index_meta);
     int N = 1000;
     auto raw_data = DataGen(schema, N);
     segcore::LoadIndexInfo load_index_info;

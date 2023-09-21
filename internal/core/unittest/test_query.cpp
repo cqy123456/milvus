@@ -608,7 +608,7 @@ TEST(Query, FillSegment) {
         return segment;
     }());
     segments.emplace_back([&] {
-        auto segment = CreateSealedSegment(schema);
+        auto segment = CreateSealedSegment(schema, empty_index_meta);
         SealedLoadFieldData(dataset, *segment);
         return segment;
     }());

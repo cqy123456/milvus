@@ -38,8 +38,12 @@ namespace milvus::segcore {
 
 class SegmentSealedImpl : public SegmentSealed {
  public:
-    explicit SegmentSealedImpl(SchemaPtr schema, int64_t segment_id);
+    explicit SegmentSealedImpl(SchemaPtr schema,
+                                IndexMetaPtr indexMeta,
+                                const SegcoreConfig& segcore_config,
+                                int64_t segment_id);
     ~SegmentSealedImpl() override;
+    
     void
     LoadIndex(const LoadIndexInfo& info) override;
     void
@@ -181,6 +185,9 @@ class SegmentSealedImpl : public SegmentSealed {
     std::unique_ptr<DataArray>
     fill_with_empty(FieldId field_id, int64_t count) const;
 
+    bool
+    generate_binlog_index(FieldId field_id);
+
     void
     update_row_count(int64_t row_count) {
         // if (row_count_opt_.has_value()) {
@@ -255,11 +262,16 @@ class SegmentSealedImpl : public SegmentSealed {
     SchemaPtr schema_;
     int64_t id_;
     std::unordered_map<FieldId, std::shared_ptr<ColumnBase>> fields_;
+    IndexMetaPtr binlog_index_meta_;
+
+    SegcoreConfig segcore_config_;
 };
 
 inline SegmentSealedPtr
-CreateSealedSegment(SchemaPtr schema, int64_t segment_id = -1) {
-    return std::make_unique<SegmentSealedImpl>(schema, segment_id);
+CreateSealedSegment(
+    SchemaPtr schema, 
+    int64_t segment_id = -1,  
+    const SegcoreConfig& segcore_config = SegcoreConfig::default_config()) {
+    return std::make_unique<SegmentSealedImpl>(schema, segcore_config, segment_id);
 }
-
 }  // namespace milvus::segcore

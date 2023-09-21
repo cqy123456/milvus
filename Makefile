@@ -18,8 +18,8 @@ OBJPREFIX := "github.com/milvus-io/milvus/cmd/milvus"
 INSTALL_PATH := $(PWD)/bin
 LIBRARY_PATH := $(PWD)/lib
 OS := $(shell uname -s)
-mode = Release
-disk_index = OFF
+mode = Debug
+disk_index = ON
 useasan = false
 ifeq (${USE_ASAN}, true)
 useasan = true

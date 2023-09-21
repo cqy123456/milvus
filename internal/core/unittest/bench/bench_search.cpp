@@ -31,6 +31,17 @@ const auto schema = []() {
     return schema;
 }();
 
+const auto index_meta = [](size_t row_count, FieldId field_id) {
+    std::map<std::string, std::string> index_params = {
+        {"index_type", "IVF_FLAT"}, {"metric_type", "L2"}, {"nlist", "128"}};
+    std::map<std::string, std::string> type_params = {{"dim", "128"}};
+    auto fieldIndexMeta = FieldIndexMeta(field_id, std::move(index_params), std::move(type_params));
+    std::map<FieldId, FieldIndexMeta> filedMap = {{field_id, fieldIndexMeta}};
+    IndexMetaPtr metaPtr =
+        std::make_shared<CollectionIndexMeta>(row_count, std::move(filedMap));
+    return metaPtr;
+};
+
 const auto plan = [] {
     const char* raw_plan = R"(vector_anns: <
                                 field_id: 100
@@ -69,18 +80,9 @@ Search_GrowingIndex(benchmark::State& state) {
     auto segconf = SegcoreConfig::default_config();
     segconf.set_chunk_rows(chunk_rows);
 
-    std::map<std::string, std::string> index_params = {
-        {"index_type", "IVF_FLAT"}, {"metric_type", "L2"}, {"nlist", "128"}};
-    std::map<std::string, std::string> type_params = {{"dim", "128"}};
-    FieldIndexMeta fieldIndexMeta(schema->get_field_id(FieldName("fakevec")),
-                                  std::move(index_params),
-                                  std::move(type_params));
     segconf.set_enable_growing_segment_index(true);
-    std::map<FieldId, FieldIndexMeta> filedMap = {
-        {schema->get_field_id(FieldName("fakevec")), fieldIndexMeta}};
-    IndexMetaPtr metaPtr =
-        std::make_shared<CollectionIndexMeta>(226985, std::move(filedMap));
-
+    auto metaPtr = index_meta(226985, schema->get_field_id(FieldName("fakevec")));
+    
     auto segment = CreateGrowingSegment(schema, metaPtr, -1, segconf);
 
     segment->PreInsert(N);
@@ -101,8 +103,10 @@ BENCHMARK(Search_GrowingIndex)
 
 static void
 Search_Sealed(benchmark::State& state) {
-    auto segment = CreateSealedSegment(schema);
     static int64_t N = 1024 * 1024;
+    auto metaPtr = index_meta(N, schema->get_field_id(FieldName("fakevec")));
+    auto segment = CreateSealedSegment(schema, metaPtr);
+    
     const auto dataset_ = [] {
         auto dataset_ = DataGen(schema, N);
         return dataset_;

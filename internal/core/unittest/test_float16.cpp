@@ -329,7 +329,7 @@ TEST(Float16, RetrieveEmpty) {
     int64_t req_size = 10;
     auto choose = [=](int i) { return i * 3 % N; };
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
 
     auto plan = std::make_unique<query::RetrievePlan>(*schema);
     std::vector<int64_t> values;

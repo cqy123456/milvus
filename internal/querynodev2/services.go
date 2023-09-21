@@ -477,6 +477,7 @@ func (node *QueryNode) LoadSegments(ctx context.Context, req *querypb.LoadSegmen
 		segments.SegmentTypeSealed,
 		req.GetVersion(),
 		req.GetInfos()...,
+		req.
 	)
 	if err != nil {
 		return merr.Status(err), nil

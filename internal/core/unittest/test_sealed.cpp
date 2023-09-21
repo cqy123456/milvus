@@ -120,7 +120,7 @@ TEST(Sealed, without_predicate) {
     load_info.index_params["metric_type"] = "L2";
 
     // load index for vec field, load raw data for scalar field
-    auto sealed_segment = SealedCreator(schema, dataset);
+    auto sealed_segment = SealedCreator(schema, empty_index_meta, dataset);
     sealed_segment->DropFieldData(fake_id);
     sealed_segment->LoadIndex(load_info);
 
@@ -233,7 +233,7 @@ TEST(Sealed, with_predicate) {
     load_info.index_params["metric_type"] = "L2";
 
     // load index for vec field, load raw data for scalar field
-    auto sealed_segment = SealedCreator(schema, dataset);
+    auto sealed_segment = SealedCreator(schema, empty_index_meta, dataset);
     sealed_segment->DropFieldData(fake_id);
     sealed_segment->LoadIndex(load_info);
 
@@ -326,7 +326,7 @@ TEST(Sealed, with_predicate_filter_all) {
     load_info.index_params["metric_type"] = "L2";
 
     // load index for vec field, load raw data for scalar field
-    auto ivf_sealed_segment = SealedCreator(schema, dataset);
+    auto ivf_sealed_segment = SealedCreator(schema, empty_index_meta, dataset);
     ivf_sealed_segment->DropFieldData(fake_id);
     ivf_sealed_segment->LoadIndex(load_info);
 
@@ -358,7 +358,7 @@ TEST(Sealed, with_predicate_filter_all) {
     hnsw_load_info.index_params["metric_type"] = "L2";
 
     // load index for vec field, load raw data for scalar field
-    auto hnsw_sealed_segment = SealedCreator(schema, dataset);
+    auto hnsw_sealed_segment = SealedCreator(schema, empty_index_meta, dataset);
     hnsw_sealed_segment->DropFieldData(fake_id);
     hnsw_sealed_segment->LoadIndex(hnsw_load_info);
 
@@ -390,7 +390,7 @@ TEST(Sealed, LoadFieldData) {
 
     auto indexing = GenVecIndexing(N, dim, fakevec.data());
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     // std::string dsl = R"({
     //     "bool": {
     //         "must": [
@@ -514,7 +514,7 @@ TEST(Sealed, LoadFieldDataMmap) {
 
     auto indexing = GenVecIndexing(N, dim, fakevec.data());
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     const char* raw_plan = R"(vector_anns: <
                                     field_id: 100
                                     predicates: <
@@ -605,7 +605,7 @@ TEST(Sealed, LoadScalarIndex) {
 
     auto indexing = GenVecIndexing(N, dim, fakevec.data());
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     // std::string dsl = R"({
     //     "bool": {
     //         "must": [
@@ -743,7 +743,7 @@ TEST(Sealed, Delete) {
 
     auto fakevec = dataset.get_col<float>(fakevec_id);
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     const char* raw_plan = R"(vector_anns: <
                                     field_id: 100
                                     predicates: <
@@ -827,7 +827,7 @@ TEST(Sealed, OverlapDelete) {
 
     auto fakevec = dataset.get_col<float>(fakevec_id);
 
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     const char* raw_plan = R"(vector_anns: <
                                     field_id: 100
                                     predicates: <
@@ -947,7 +947,7 @@ TEST(Sealed, BF) {
     size_t N = 100000;
 
     auto dataset = DataGen(schema, N);
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     std::cout << fake_id.get() << std::endl;
     SealedLoadFieldData(dataset, *segment, {fake_id.get()});
 
@@ -1001,7 +1001,7 @@ TEST(Sealed, BF_Overflow) {
     size_t N = 10;
 
     auto dataset = DataGen(schema, N);
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
     std::cout << fake_id.get() << std::endl;
     SealedLoadFieldData(dataset, *segment, {fake_id.get()});
 
@@ -1046,7 +1046,7 @@ TEST(Sealed, DeleteCount) {
     auto schema = std::make_shared<Schema>();
     auto pk = schema->AddDebugField("pk", DataType::INT64);
     schema->set_primary_field_id(pk);
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
 
     int64_t c = 10;
     auto offset = segment->get_deleted_count();
@@ -1066,7 +1066,7 @@ TEST(Sealed, RealCount) {
     auto schema = std::make_shared<Schema>();
     auto pk = schema->AddDebugField("pk", DataType::INT64);
     schema->set_primary_field_id(pk);
-    auto segment = CreateSealedSegment(schema);
+    auto segment = CreateSealedSegment(schema, empty_index_meta);
 
     ASSERT_EQ(0, segment->get_real_count());
 
@@ -1127,7 +1127,7 @@ TEST(Sealed, GetVector) {
 
     auto indexing = GenVecIndexing(N, dim, fakevec.data());
 
-    auto segment_sealed = CreateSealedSegment(schema);
+    auto segment_sealed = CreateSealedSegment(schema, empty_index_meta);
 
     LoadIndexInfo vec_info;
     vec_info.field_id = fakevec_id.get();
@@ -1213,7 +1213,7 @@ TEST(Sealed, GetVectorFromChunkCache) {
     auto indexing =
         std::make_unique<index::VectorMemIndex>(index_type, metric_type);
     indexing->BuildWithDataset(ds, conf);
-    auto segment_sealed = CreateSealedSegment(schema);
+    auto segment_sealed = CreateSealedSegment(schema, empty_index_meta);
 
     LoadIndexInfo vec_info;
     vec_info.field_id = fakevec_id.get();

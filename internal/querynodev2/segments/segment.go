@@ -669,7 +669,7 @@ func (s *LocalSegment) LoadMultiFieldData(rowCount int64, fields []*datapb.Field
 	return nil
 }
 
-func (s *LocalSegment) LoadFieldData(fieldID int64, rowCount int64, field *datapb.FieldBinlog) error {
+func (s *LocalSegment) LoadFieldData(fieldID int64, rowCount int64, field *datapb.FieldBinlog, collection_index_info *querypb.IndexInfo) error {
 	s.ptrLock.RLock()
 	defer s.ptrLock.RUnlock()
 

@@ -773,14 +773,14 @@ SealedLoadFieldData(const GeneratedData& dataset,
         if (with_mmap) {
             seg.MapFieldData(FieldId(field_id), info);
         } else {
-            seg.LoadFieldData(FieldId(field_id), info);
+            seg.LoadFieldData(FieldId(field_id), info); 
         }
     }
 }
 
 inline std::unique_ptr<SegmentSealed>
-SealedCreator(SchemaPtr schema, const GeneratedData& dataset) {
-    auto segment = CreateSealedSegment(schema);
+SealedCreator(SchemaPtr schema, IndexMetaPtr index_meta, const GeneratedData& dataset) {
+    auto segment = CreateSealedSegment(schema, index_meta);
     SealedLoadFieldData(dataset, *segment);
     return segment;
 }

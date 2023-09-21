@@ -39,6 +39,7 @@
 #include "storage/ChunkCacheSingleton.h"
 #include "common/File.h"
 #include "common/Tracer.h"
+#include "index/VectorMemIndex.h"
 
 namespace milvus::segcore {
 
@@ -348,6 +349,12 @@ SegmentSealedImpl::LoadFieldData(FieldId field_id, FieldDataInfo& data) {
 
         std::unique_lock lck(mutex_);
         set_bit(field_data_ready_bitset_, field_id, true);
+        
+        if (generate_binlog_index(field_id)) {
+            set_bit(index_ready_bitset_, field_id, true);
+            fields_.erase(field_id);
+            set_bit(field_data_ready_bitset_, field_id, false);
+        }
     }
     std::unique_lock lck(mutex_);
     update_row_count(num_rows);
@@ -773,8 +780,13 @@ SegmentSealedImpl::check_search(const query::Plan* plan) const {
     }
 }
 
-SegmentSealedImpl::SegmentSealedImpl(SchemaPtr schema, int64_t segment_id)
-    : schema_(schema),
+SegmentSealedImpl::SegmentSealedImpl(SchemaPtr schema,
+                                IndexMetaPtr indexMeta,
+                                const SegcoreConfig& segcore_config,
+                                int64_t segment_id)
+    : segcore_config_(segcore_config),
+      binlog_index_meta_(indexMeta),
+      schema_(schema),
       insert_record_(*schema, MAX_ROW_COUNT),
       field_data_ready_bitset_(schema->size()),
       index_ready_bitset_(schema->size()),
@@ -1156,6 +1168,36 @@ SegmentSealedImpl::mask_with_timestamps(BitsetType& bitset_chunk,
     auto mask = TimestampIndex::GenerateBitset(
         timestamp, range, timestamps_data.data(), timestamps_data.size());
     bitset_chunk |= mask;
+}
+
+bool
+SegmentSealedImpl::generate_binlog_index(FieldId field_id) {
+    if (binlog_index_meta_ == nullptr || !binlog_index_meta_->HasFiled(field_id)) return false;
+    // get binlog data and meta
+    auto& field_meta = schema_->operator[](field_id);
+    auto row_count = num_rows_.value();
+    auto dim = field_meta.get_dim();
+    auto vec_data = fields_.at(field_id);
+    auto dataset =  knowhere::GenDataSet(row_count, dim, (void*)vec_data->Data());
+    dataset->SetIsOwner(true);
+    // generate index params
+    auto config = VecIndexConfig(row_count, binlog_index_meta_->GetFieldIndexMeta(field_id), segcore_config_);
+    auto build_config = config.GetBuildBaseParams();
+    build_config[knowhere::meta::DIM] = std::to_string(dim);
+    build_config[knowhere::meta::NUM_BUILD_THREAD] = std::to_string(1);
+    auto index_metric = config.GetMetricType();
+    // if this field is vector, build a temperate index
+    if (field_meta.is_vector() && field_meta->Get) {
+        index::IndexBasePtr vec_index = std::make_unique<index::VectorMemIndex>(config.GetIndexType(), index_metric); 
+        vec_index->BuildWithDataset(dataset, build_config);
+        vector_indexings_.append_field_indexing(
+           field_id,
+           index_metric,
+          std::move(vec_index));
+        return true;
+    } else {
+        return false;
+    }
 }
 
 }  // namespace milvus::segcore

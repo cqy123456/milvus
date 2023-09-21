@@ -163,6 +163,7 @@ func (loader *segmentLoader) Load(ctx context.Context,
 	segmentType SegmentType,
 	version int64,
 	segments ...*querypb.SegmentLoadInfo,
+	collection_index_info *querypb.IndexInfo,
 ) ([]Segment, error) {
 	log := log.Ctx(ctx).With(
 		zap.Int64("collectionID", collectionID),
@@ -234,7 +235,7 @@ func (loader *segmentLoader) Load(ctx context.Context,
 		segment, _ := newSegments.Get(segmentID)
 
 		tr := timerecord.NewTimeRecorder("loadDurationPerSegment")
-		err := loader.loadSegment(ctx, segment, loadInfo)
+		err := loader.loadSegment(ctx, segment, loadInfo, collection_index_info)
 		if err != nil {
 			log.Warn("load segment failed when load data into memory",
 				zap.Int64("partitionID", partitionID),
@@ -526,6 +527,7 @@ func (loader *segmentLoader) LoadBloomFilterSet(ctx context.Context, collectionI
 func (loader *segmentLoader) loadSegment(ctx context.Context,
 	segment *LocalSegment,
 	loadInfo *querypb.SegmentLoadInfo,
+	collection_index_info *querypb.IndexInfo,
 ) error {
 	log := log.Ctx(ctx).With(
 		zap.Int64("collectionID", segment.Collection()),
@@ -581,7 +583,7 @@ func (loader *segmentLoader) loadSegment(ctx context.Context,
 		if err := loader.loadFieldsIndex(ctx, collection.Schema(), segment, loadInfo.GetNumOfRows(), indexedFieldInfos); err != nil {
 			return err
 		}
-		if err := loader.loadSealedSegmentFields(ctx, segment, fieldBinlogs, loadInfo.GetNumOfRows()); err != nil {
+		if err := loader.loadSealedSegmentFields(ctx, segment, fieldBinlogs, loadInfo.GetNumOfRows(), collection_index_info); err != nil {
 			return err
 		}
 		if err := segment.AddFieldDataInfo(loadInfo.GetNumOfRows(), loadInfo.GetBinlogPaths()); err != nil {
@@ -632,13 +634,13 @@ func (loader *segmentLoader) filterPKStatsBinlogs(fieldBinlogs []*datapb.FieldBi
 	return result, storage.DefaultStatsType
 }
 
-func (loader *segmentLoader) loadSealedSegmentFields(ctx context.Context, segment *LocalSegment, fields []*datapb.FieldBinlog, rowCount int64) error {
+func (loader *segmentLoader) loadSealedSegmentFields(ctx context.Context, segment *LocalSegment, fields []*datapb.FieldBinlog, rowCount int64, collection_index_info *querypb.IndexInfo) error {
 	runningGroup, _ := errgroup.WithContext(ctx)
 	for _, field := range fields {
 		fieldBinLog := field
 		fieldID := field.FieldID
 		runningGroup.Go(func() error {
-			return segment.LoadFieldData(fieldID, rowCount, fieldBinLog)
+			return segment.LoadFieldData(fieldID, rowCount, fieldBinLog, collection_index_info)
 		})
 	}
 	err := runningGroup.Wait()
