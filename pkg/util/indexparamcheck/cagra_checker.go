@@ -11,30 +11,27 @@ type cagraChecker struct {
 }
 
 func (c *cagraChecker) CheckTrain(params map[string]string) error {
-	if err := c.baseChecker.CheckTrain(params); err != nil {
+	err := c.baseChecker.CheckTrain(params)
+	if err != nil {
 		return err
 	}
-
+	interDegree := int(0)
+	graphDegree := int(0)
 	interDegreeStr, interDegreeExist := params[CAGRA_INTER_DEGREE]
-	if !interDegreeExist {
-		return fmt.Errorf("cagra inter degree not found")
+	if interDegreeExist {
+		interDegree, err = strconv.Atoi(interDegreeStr)
+		if err != nil {
+			return fmt.Errorf("invalid cagra inter degree: %s", interDegreeStr)
+		}
 	}
 	graphDegreeStr, graphDegreeExist := params[CAGRA_GRAPH_DEGREE]
-	if !graphDegreeExist {
-		return fmt.Errorf("cagra graph degree not found")
+	if graphDegreeExist {
+		graphDegree, err = strconv.Atoi(graphDegreeStr)
+		if err != nil {
+			return fmt.Errorf("invalid cagra graph degree: %s", graphDegreeStr)
+		}
 	}
-	interDegree, err := strconv.Atoi(interDegreeStr)
-	if err != nil {
-		return fmt.Errorf("invalid cagra inter degree: %s", interDegreeStr)
-	}
-
-	graphDegree, err := strconv.Atoi(graphDegreeStr)
-	if err != nil {
-		return fmt.Errorf("invalid cagra graph degree: %s", graphDegreeStr)
-	}
-
-	if interDegree < graphDegree {
-
+	if graphDegreeExist && interDegreeExist && interDegree < graphDegree {
 		return fmt.Errorf("Graph degree cannot be larger than intermediate graph degree")
 	}
 
