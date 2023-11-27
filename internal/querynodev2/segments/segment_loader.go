@@ -50,7 +50,8 @@ import (
 )
 
 const (
-	UsedDiskMemoryRatio = 4
+	UsedDiskMemoryRatio     = 4
+	BinlogIndexExpandFactor = 1.15
 )
 
 type Loader interface {
@@ -968,6 +969,10 @@ func (loader *segmentLoader) checkSegmentSize(ctx context.Context, segmentLoadIn
 					predictDiskUsage += uint64(getBinlogDataSize(fieldBinlog))
 				} else {
 					predictMemUsage += uint64(getBinlogDataSize(fieldBinlog))
+					enableBinlogIndex := paramtable.Get().QueryNodeCfg.EnableTempSegmentIndex.GetAsBool()
+					if enableBinlogIndex {
+						predictMemUsage += uint64(float32(getBinlogDataSize(fieldBinlog)) * BinlogIndexExpandFactor)
+					}
 				}
 			}
 
