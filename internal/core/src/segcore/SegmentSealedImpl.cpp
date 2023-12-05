@@ -1368,9 +1368,7 @@ SegmentSealedImpl::generate_binlog_index(const FieldId field_id) {
         return false;
     auto& field_meta = schema_->operator[](field_id);
 
-    if (field_meta.is_vector() &&
-        field_meta.get_data_type() == DataType::VECTOR_FLOAT &&
-        segcore_config_.get_enable_interim_segment_index()) {
+    if (false) {
         try {
             auto& field_index_meta =
                 col_index_meta_->GetFieldIndexMeta(field_id);
