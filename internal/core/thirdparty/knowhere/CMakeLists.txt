@@ -12,8 +12,8 @@
 #-------------------------------------------------------------------------------
 
 # Update KNOWHERE_VERSION for the first occurrence
-set( KNOWHERE_VERSION c02e01b )
-set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere.git")
+set( KNOWHERE_VERSION 4c951e1 )
+set( GIT_REPOSITORY  "https://github.com/cqy123456/zilliztech-knowhere.git")
 if ( INDEX_ENGINE STREQUAL "cardinal" )
     set( KNOWHERE_VERSION main )
     set( GIT_REPOSITORY  "https://github.com/zilliztech/knowhere-cloud.git")
@@ -22,37 +22,37 @@ message(STATUS "Knowhere repo: ${GIT_REPOSITORY}")
 message(STATUS "Knowhere version: ${KNOWHERE_VERSION}")
 
 message(STATUS "Building knowhere-${KNOWHERE_SOURCE_VER} from source")
-message(STATUS ${CMAKE_BUILD_TYPE})
+                message(STATUS ${CMAKE_BUILD_TYPE})
 
-if ( BUILD_DISK_ANN STREQUAL "ON" )
+                    if ( BUILD_DISK_ANN STREQUAL "ON" )
     set(WITH_DISKANN ON CACHE BOOL "" FORCE )
 else ()
     set(WITH_DISKANN OFF CACHE BOOL "" FORCE )
 endif ()
 
-if ( MILVUS_GPU_VERSION STREQUAL "ON" )
+                        if ( MILVUS_GPU_VERSION STREQUAL "ON" )
     set(WITH_RAFT ON CACHE BOOL "" FORCE )
 endif ()
 
-set( CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} )
-FetchContent_Declare(
-        knowhere
+                            set( CMAKE_PREFIX_PATH ${CONAN_BOOST_ROOT} )
+                                FetchContent_Declare(
+                                    knowhere
         GIT_REPOSITORY  ${GIT_REPOSITORY}
         GIT_TAG         ${KNOWHERE_VERSION}
         SOURCE_DIR      ${CMAKE_CURRENT_BINARY_DIR}/knowhere-src
         BINARY_DIR      ${CMAKE_CURRENT_BINARY_DIR}/knowhere-build
         DOWNLOAD_DIR    ${THIRDPARTY_DOWNLOAD_PATH} )
 
-FetchContent_GetProperties( knowhere )
+                                    FetchContent_GetProperties( knowhere )
 if ( NOT knowhere_POPULATED )
-    FetchContent_Populate( knowhere )
+                                        FetchContent_Populate( knowhere )
 
-    # Adding the following target:
-    # knowhere
-    add_subdirectory( ${knowhere_SOURCE_DIR}
+# Adding the following target:
+# knowhere
+                                            add_subdirectory( ${knowhere_SOURCE_DIR}
                       ${knowhere_BINARY_DIR} )
 endif()
 
 # get prometheus COMPILE_OPTIONS
-get_property( var DIRECTORY "${knowhere_SOURCE_DIR}" PROPERTY COMPILE_OPTIONS )
-message( STATUS "knowhere src compile options: ${var}" )
+                                                get_property( var DIRECTORY "${knowhere_SOURCE_DIR}" PROPERTY COMPILE_OPTIONS )
+                                                    message( STATUS "knowhere src compile options: ${var}" )
