@@ -28,7 +28,7 @@ void
 SegcoreSetNlist(const int64_t);
 
 void
-SegcoreSetSearchGranularity(const int64_t);
+SegcoreSetSearchGranularity(const int64_t value);
 
 void
 SegcoreSetVecCompressRatio(const float value);

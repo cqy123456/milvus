@@ -187,14 +187,14 @@ func (node *QueryNode) InitSegcore() error {
 	cKnowhereThreadPoolSize := C.uint32_t(paramtable.Get().QueryNodeCfg.KnowhereThreadPoolSize.GetAsUint32())
 	C.SegcoreSetKnowhereSearchThreadPoolNum(cKnowhereThreadPoolSize)
 
+	searchGranularity := C.int64_t(paramtable.Get().QueryNodeCfg.InterimIndexSearchGranularity.GetAsInt64())
+	C.SegcoreSetSearchGranularity(searchGranularity)
+
 	enableInterimIndex := C.bool(paramtable.Get().QueryNodeCfg.EnableTempSegmentIndex.GetAsBool())
 	C.SegcoreSetEnableInterimSegmentIndex(enableInterimIndex)
 
 	nlist := C.int64_t(paramtable.Get().QueryNodeCfg.InterimIndexNlist.GetAsInt64())
 	C.SegcoreSetNlist(nlist)
-
-	// searchGranularity := C.int64_t(paramtable.Get().QueryNodeCfg.InterimIndexSearchGranularity.GetAsInt64())
-	// C.SegcoreSetSearchGranularity(searchGranularity)
 
 	compressRatio := paramtable.Get().QueryNodeCfg.InterimIndexVecCompressRatio.GetAsFloat()
 	compressRatio, updateErr := indexparams.UpdateInterimIndexCompressRatio(paramtable.Get(), compressRatio)

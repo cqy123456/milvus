@@ -24,6 +24,7 @@ SearchParamsGenerator::SearchParamsGenerator(const int64_t nlist,
                                              const int64_t search_granularity,
                                              const int64_t n_rows)
     : nlist_(nlist), search_granularity_(search_granularity), n_rows_(n_rows) {
+    std::cout <<"using search_granularity to init SearchParamsGenerator"<< search_granularity<<std::endl;
     min_nprobe_ = std::min(kMinNprobe, nlist_);
     slots_num_ = slots_factor.size() + search_granularity_;
     slot_offest_ = float(nlist - min_nprobe_) / float(slots_num_);
@@ -51,12 +52,14 @@ SearchParamsGenerator::GetSearchConfig(const SearchInfo& search_info) {
             std::to_string(kDefaultNprobe);
     } else if (!search_info.search_params_.contains(RADIUS)) {
         uint64_t topk = search_info.topk_;
+        std::cout << "search_info.search_params_ :"<< search_info.search_params_.dump()<<std::endl; 
         if (search_info.search_params_.contains(kSearchLevelKey)) {
             auto level_str =
                 search_info.search_params_[kSearchLevelKey].get<std::string>();
             auto level = std::stoi(level_str.c_str(), nullptr);
             search_params[knowhere::indexparam::NPROBE] =
                 std::to_string(GetNprobe(topk, level));
+            std::cout <<"GetSearchConfig:" << search_params.dump()<<std::endl;
         } else {
             search_params[knowhere::indexparam::NPROBE] =
                 std::to_string(GetNprobe(topk));

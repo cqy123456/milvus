@@ -46,7 +46,7 @@ SegcoreSetNlist(const int64_t value) {
 }
 
 extern "C" void
-SegCoreSetSearchGranularity(const int64_t value) {
+SegcoreSetSearchGranularity(const int64_t value) {
     milvus::segcore::SegcoreConfig& config =
         milvus::segcore::SegcoreConfig::default_config();
     config.set_search_granularity(value);

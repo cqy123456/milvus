@@ -306,7 +306,7 @@ queryNode:
     interimIndex: # build a vector temperate index for growing segment or binlog to accelerate search
       enableIndex: true
       nlist: 128 # segment index nlist
-      searchGranularity: 10 
+      searchGranularity: 5
       # interim index will generate search parameters based on topk. 
       # The larger the search granularity, the slower the search parameters change based on topk.
       # searchGranularity should be in [1, nlist]
