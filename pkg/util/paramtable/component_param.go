@@ -1971,10 +1971,12 @@ type queryNodeConfig struct {
 	DiskCacheCapacityLimit ParamItem `refreshable:"true"`
 
 	// cache limit
-	CacheEnabled     ParamItem `refreshable:"false"`
-	CacheMemoryLimit ParamItem `refreshable:"false"`
-	MmapDirPath      ParamItem `refreshable:"false"`
-	MmapEnabled      ParamItem `refreshable:"false"`
+	CacheEnabled               ParamItem `refreshable:"false"`
+	CacheMemoryLimit           ParamItem `refreshable:"false"`
+	MmapDirPath                ParamItem `refreshable:"false"`
+	MmapEnabled                ParamItem `refreshable:"false"`
+	GrowingMmapFileSize        ParamItem `refreshable:"false"`
+	MaxMmapDiskUsageForGrowing ParamItem `refreshable:"false"`
 
 	LazyLoadEnabled ParamItem `refreshable:"false"`
 
@@ -2210,6 +2212,24 @@ func (p *queryNodeConfig) init(base *BaseTable) {
 		Export:       true,
 	}
 	p.MmapEnabled.Init(base.mgr)
+
+	p.GrowingMmapFileSize = ParamItem{
+		Key:          "queryNode.mmap.growingMmapFileSize",
+		Version:      "2.4.0",
+		DefaultValue: "64",
+		Doc:          "tmp file size of growing segment to mmap chunk data",
+		Export:       true,
+	}
+	p.GrowingMmapFileSize.Init(base.mgr)
+
+	p.MaxMmapDiskUsageForGrowing = ParamItem{
+		Key:          "querynode.mmap.maxDiskUsageForGrowing",
+		Version:      "2.4.0",
+		DefaultValue: "10240",
+		Doc:          "max disk size for mmaping growing segment chunk data",
+		Export:       true,
+	}
+	p.MaxMmapDiskUsageForGrowing.Init(base.mgr)
 
 	p.LazyLoadEnabled = ParamItem{
 		Key:          "queryNode.lazyloadEnabled",

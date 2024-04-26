@@ -25,6 +25,9 @@ void
 SegcoreSetEnableTempSegmentIndex(const bool);
 
 void
+SegcoreSetEnableMmap(const bool);
+
+void
 SegcoreSetNlist(const int64_t);
 
 void

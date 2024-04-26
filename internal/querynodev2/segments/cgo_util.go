@@ -94,3 +94,16 @@ func GetLocalUsedSize(ctx context.Context, path string) (int64, error) {
 
 	return availableSize, nil
 }
+
+func GetGrowingMmapDiskUsage(ctx context.Context) (int64, error) {
+	var availableSize int64
+	cSize := (*C.int64_t)(&availableSize)
+
+	status := C.GetGrowingMmapUsedSize(cSize)
+	err := HandleCStatus(ctx, &status, "get growing mmap disk usage failed")
+	if err != nil {
+		return 0, err
+	}
+
+	return availableSize, nil
+}

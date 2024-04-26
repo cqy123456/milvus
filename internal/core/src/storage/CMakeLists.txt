@@ -57,7 +57,8 @@ set(STORAGE_FILES
     ThreadPools.cpp
     ChunkCache.cpp
     TencentCloudCredentialsProvider.cpp
-    TencentCloudSTSClient.cpp)
+    TencentCloudSTSClient.cpp
+    GrowingMmapChunkManager.cpp)
 
 if(USE_OPENDAL)
     list(APPEND STORAGE_FILES OpenDALChunkManager.cpp)

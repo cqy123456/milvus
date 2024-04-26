@@ -149,6 +149,8 @@ type quotaConfig struct {
 	DiskQuotaPerDB                       ParamItem `refreshable:"true"`
 	DiskQuotaPerCollection               ParamItem `refreshable:"true"`
 	DiskQuotaPerPartition                ParamItem `refreshable:"true"`
+	QueryNodeGrowingMmapLowWaterLevel    ParamItem `refreshable:"true"`
+	QueryNodeGrowingMmapHighWaterLevel   ParamItem `refreshable:"true"`
 
 	// limit reading
 	ForceDenyReading               ParamItem `refreshable:"true"`
@@ -1701,6 +1703,49 @@ When memory usage < memoryLowWaterLevel, no action.`,
 		Export: true,
 	}
 	p.QueryNodeMemoryHighWaterLevel.Init(base.mgr)
+
+	p.QueryNodeGrowingMmapLowWaterLevel = ParamItem{
+		Key:          "quotaAndLimits.limitWriting.diskProtection.queryNodeGrowingMmapLowWaterLevel",
+		Version:      "2.4.0",
+		DefaultValue: lowWaterLevel,
+		Formatter: func(v string) string {
+			if !p.DiskProtectionEnabled.GetAsBool() {
+				return lowWaterLevel
+			}
+			level := getAsFloat(v)
+			// (0, 1]
+			if level <= 0 || level > 1 {
+				return lowWaterLevel
+			}
+			return v
+		},
+		Doc:    "(0, 1], QueryNodeGrowingMmapLowWaterLevel in QueryNodes",
+		Export: true,
+	}
+	p.QueryNodeGrowingMmapLowWaterLevel.Init(base.mgr)
+
+	p.QueryNodeGrowingMmapHighWaterLevel = ParamItem{
+		Key:          "quotaAndLimits.limitWriting.diskProtection.queryNodeGrowingMmapHighWaterLevel",
+		Version:      "2.4.0",
+		DefaultValue: highWaterLevel,
+		Formatter: func(v string) string {
+			if !p.DiskProtectionEnabled.GetAsBool() {
+				return highWaterLevel
+			}
+			level := getAsFloat(v)
+			// (0, 1]
+			if level <= 0 || level > 1 {
+				return highWaterLevel
+			}
+			if !p.checkMinMaxLegal(p.QueryNodeGrowingMmapLowWaterLevel.GetAsFloat(), getAsFloat(v)) {
+				return highWaterLevel
+			}
+			return v
+		},
+		Doc:    "(0, 1], QueryNodeGrowingMmapHighWaterLevel in QueryNodes",
+		Export: true,
+	}
+	p.QueryNodeGrowingMmapHighWaterLevel.Init(base.mgr)
 
 	p.GrowingSegmentsSizeProtectionEnabled = ParamItem{
 		Key:          "quotaAndLimits.limitWriting.growingSegmentsSizeProtection.enabled",

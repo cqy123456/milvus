@@ -73,11 +73,22 @@ class SegcoreConfig {
         return enable_interim_segment_index_;
     }
 
+    void
+    set_enable_mmap(bool flag) {
+        this->enable_mmap_ = flag;
+    }
+
+    bool
+    get_enable_mmap() const {
+        return enable_mmap_;
+    }
+
  private:
     inline static bool enable_interim_segment_index_ = false;
     inline static int64_t chunk_rows_ = 32 * 1024;
     inline static int64_t nlist_ = 100;
     inline static int64_t nprobe_ = 4;
+    inline static bool enable_mmap_ = false;
 };
 
 }  // namespace milvus::segcore

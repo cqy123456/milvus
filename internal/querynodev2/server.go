@@ -238,6 +238,9 @@ func (node *QueryNode) InitSegcore() error {
 		return err
 	}
 
+	mmapEnabled := paramtable.Get().QueryNodeCfg.MmapEnabled.GetAsBool()
+	C.SegcoreSetEnableMmap(C.bool(mmapEnabled))
+
 	mmapDirPath := paramtable.Get().QueryNodeCfg.MmapDirPath.GetValue()
 	if len(mmapDirPath) == 0 {
 		paramtable.Get().Save(
@@ -254,6 +257,13 @@ func (node *QueryNode) InitSegcore() error {
 	}
 	log.Info("InitChunkCache done", zap.String("dir", chunkCachePath), zap.String("policy", policy))
 
+	growingMmapPath := path.Join(mmapDirPath, "growing/")
+	growingMmapDiskLimit := paramtable.Get().QueryNodeCfg.MaxMmapDiskUsageForGrowing.GetAsUint64() * 1024 * 1024
+	growingMmapFileSize := paramtable.Get().QueryNodeCfg.GrowingMmapFileSize.GetAsUint64() * 1024 * 1024
+	err = initcore.InitGrowingMmapChunkManager(growingMmapPath, growingMmapDiskLimit, growingMmapFileSize)
+	if err != nil {
+		return err
+	}
 	initcore.InitTraceConfig(paramtable.Get())
 	return nil
 }

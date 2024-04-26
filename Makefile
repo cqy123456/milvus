@@ -18,7 +18,7 @@ OBJPREFIX := "github.com/milvus-io/milvus/cmd/milvus"
 INSTALL_PATH := $(PWD)/bin
 LIBRARY_PATH := $(PWD)/lib
 OS := $(shell uname -s)
-mode = Release
+mode = Debug
 
 use_disk_index = OFF
 ifdef disk_index

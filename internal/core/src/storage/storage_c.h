@@ -33,6 +33,14 @@ InitRemoteChunkManagerSingleton(CStorageConfig c_storage_config);
 CStatus
 InitChunkCacheSingleton(const char* c_dir_path, const char* read_ahead_policy);
 
+CStatus
+GetGrowingMmapUsedSize(int64_t* size);
+
+CStatus
+InitGrowingMmapChunkManagerSingleton(const char* c_dir_path,
+                                     uint64_t file_size,
+                                     uint64_t disk_limit);
+
 void
 CleanRemoteChunkManagerSingleton();
 
