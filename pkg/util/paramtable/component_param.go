@@ -2008,10 +2008,13 @@ type queryNodeConfig struct {
 	DiskCacheCapacityLimit ParamItem `refreshable:"true"`
 
 	// cache limit
-	CacheEnabled     ParamItem `refreshable:"false"`
-	CacheMemoryLimit ParamItem `refreshable:"false"`
-	MmapDirPath      ParamItem `refreshable:"false"`
-	MmapEnabled      ParamItem `refreshable:"false"`
+	CacheEnabled                    ParamItem `refreshable:"false"`
+	CacheMemoryLimit                ParamItem `refreshable:"false"`
+	MmapDirPath                     ParamItem `refreshable:"false"`
+	MmapEnabled                     ParamItem `refreshable:"false"`
+	GrowingMmapEnabled              ParamItem `refreshable:"false"`
+	GrowingMmapFileSize             ParamItem `refreshable:"false"`
+	MaxMmapDiskPercentageForGrowing ParamItem `refreshable:"false"`
 
 	LazyLoadEnabled                      ParamItem `refreshable:"false"`
 	LazyLoadWaitTimeout                  ParamItem `refreshable:"true"`
@@ -2253,6 +2256,38 @@ func (p *queryNodeConfig) init(base *BaseTable) {
 		Export:       true,
 	}
 	p.MmapEnabled.Init(base.mgr)
+
+	p.GrowingMmapEnabled = ParamItem{
+		Key:          "queryNode.mmap.GrowingMmapEnabled",
+		Version:      "2.4.0",
+		DefaultValue: "false",
+		FallbackKeys: []string{"queryNode.growingMmapEnabled"},
+		Doc:          "Enable mmap for using in growing raw data",
+		Export:       true,
+		Formatter: func(v string) string {
+			mmapEnabled := p.MmapEnabled.GetAsBool()
+			return strconv.FormatBool(mmapEnabled && getAsBool(v))
+		},
+	}
+	p.GrowingMmapEnabled.Init(base.mgr)
+
+	p.GrowingMmapFileSize = ParamItem{
+		Key:          "queryNode.mmap.growingMmapFileSize",
+		Version:      "2.4.0",
+		DefaultValue: "64",
+		Doc:          "tmp file size of growing segment to mmap chunk data",
+		Export:       true,
+	}
+	p.GrowingMmapFileSize.Init(base.mgr)
+
+	p.MaxMmapDiskPercentageForGrowing = ParamItem{
+		Key:          "querynode.mmap.maxDiskUsagePercentageForGrowing",
+		Version:      "2.4.0",
+		DefaultValue: "20",
+		Doc:          "disk percentage used in mmaping growing segment data",
+		Export:       true,
+	}
+	p.MaxMmapDiskPercentageForGrowing.Init(base.mgr)
 
 	p.LazyLoadEnabled = ParamItem{
 		Key:          "queryNode.lazyloadEnabled",

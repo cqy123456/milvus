@@ -170,6 +170,11 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 		).Set(float64(numEntities))
 	}
 
+	growingMmapDiskUsage, err := segments.GetGrowingMmapDiskUsage(node.ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	return &metricsinfo.QueryNodeQuotaMetrics{
 		Hms: metricsinfo.HardwareMetrics{},
 		Rms: rms,
@@ -178,9 +183,10 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 			MinFlowGraphTt:      minTsafe,
 			NumFlowGraph:        node.pipelineManager.Num(),
 		},
-		SearchQueue:         sqms,
-		QueryQueue:          qqms,
-		GrowingSegmentsSize: totalGrowingSize,
+		SearchQueue:          sqms,
+		QueryQueue:           qqms,
+		GrowingSegmentsSize:  totalGrowingSize,
+		GrowingMmapDiskUsage: growingMmapDiskUsage,
 		Effect: metricsinfo.NodeEffect{
 			NodeID:        node.GetNodeID(),
 			CollectionIDs: collections,

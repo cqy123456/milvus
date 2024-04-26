@@ -75,13 +75,14 @@ type NodeEffect struct {
 
 // QueryNodeQuotaMetrics are metrics of QueryNode.
 type QueryNodeQuotaMetrics struct {
-	Hms                 HardwareMetrics
-	Rms                 []RateMetric
-	Fgm                 FlowGraphMetric
-	SearchQueue         ReadInfoInQueue
-	QueryQueue          ReadInfoInQueue
-	GrowingSegmentsSize int64
-	Effect              NodeEffect
+	Hms                  HardwareMetrics
+	Rms                  []RateMetric
+	Fgm                  FlowGraphMetric
+	SearchQueue          ReadInfoInQueue
+	QueryQueue           ReadInfoInQueue
+	GrowingSegmentsSize  int64
+	Effect               NodeEffect
+	GrowingMmapDiskUsage int64
 }
 
 type DataCoordQuotaMetrics struct {

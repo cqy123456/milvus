@@ -138,6 +138,13 @@ func InitChunkCache(mmapDirPath string, readAheadPolicy string) error {
 	return HandleCStatus(&status, "InitChunkCacheSingleton failed")
 }
 
+func InitGrowingMmapChunkManager(mmapDirPath string, diskLimit uint64, fileSize uint64) error {
+	cMmapDirPath := C.CString(mmapDirPath)
+	defer C.free(unsafe.Pointer(cMmapDirPath))
+	status := C.InitGrowingMmapChunkManagerSingleton(cMmapDirPath, C.uint64_t(diskLimit), C.uint64_t(fileSize))
+	return HandleCStatus(&status, "InitGrowingMmapChunkManager failed")
+}
+
 func CleanRemoteChunkManager() {
 	C.CleanRemoteChunkManagerSingleton()
 }

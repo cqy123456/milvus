@@ -1003,7 +1003,7 @@ SegmentSealedImpl::SegmentSealedImpl(SchemaPtr schema,
       index_ready_bitset_(schema->size()),
       binlog_index_bitset_(schema->size()),
       scalar_indexings_(schema->size()),
-      insert_record_(*schema, MAX_ROW_COUNT),
+      insert_record_(*schema, MAX_ROW_COUNT, segment_id),
       schema_(schema),
       id_(segment_id),
       col_index_meta_(index_meta) {
@@ -1533,17 +1533,18 @@ SegmentSealedImpl::mask_with_timestamps(BitsetType& bitset_chunk,
     // TODO change the
     AssertInfo(insert_record_.timestamps_.num_chunk() == 1,
                "num chunk not equal to 1 for sealed segment");
-    const auto& timestamps_data = insert_record_.timestamps_.get_chunk(0);
-    AssertInfo(timestamps_data.size() == get_row_count(),
+    auto timestamps_data = insert_record_.timestamps_.get_chunk_data(0);
+    auto timestamps_size = insert_record_.timestamps_.get_chunk_size(0);
+    AssertInfo(timestamps_size == get_row_count(),
                fmt::format("Timestamp size not equal to row count: {}, {}",
-                           timestamps_data.size(),
+                           timestamps_size,
                            get_row_count()));
     auto range = insert_record_.timestamp_index_.get_active_range(timestamp);
 
     // range == (size_, size_) and size_ is this->timestamps_.size().
     // it means these data are all useful, we don't need to update bitset_chunk.
     // It can be thought of as an OR operation with another bitmask that is all 0s, but it is not necessary to do so.
-    if (range.first == range.second && range.first == timestamps_data.size()) {
+    if (range.first == range.second && range.first == timestamps_size) {
         // just skip
         return;
     }
@@ -1554,7 +1555,10 @@ SegmentSealedImpl::mask_with_timestamps(BitsetType& bitset_chunk,
         return;
     }
     auto mask = TimestampIndex::GenerateBitset(
-        timestamp, range, timestamps_data.data(), timestamps_data.size());
+        timestamp,
+        range,
+        static_cast<const milvus::Timestamp*>(timestamps_data),
+        timestamps_size);
     bitset_chunk |= mask;
 }
 

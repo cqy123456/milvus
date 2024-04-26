@@ -62,8 +62,8 @@ TEST(Util, GetDeleteBitmap) {
     auto i64_fid = schema->AddDebugField("age", DataType::INT64);
     schema->set_primary_field_id(i64_fid);
     auto N = 10;
-
-    InsertRecord insert_record(*schema, N);
+    uint64_t seg_id = 101;
+    InsertRecord insert_record(*schema, N, seg_id);
     DeletedRecord delete_record;
 
     // fill insert record, all insert records has same pk = 1, timestamps= {1 ... N}

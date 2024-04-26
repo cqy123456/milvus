@@ -30,6 +30,7 @@
 #include "segcore/AckResponder.h"
 #include "segcore/ConcurrentVector.h"
 #include "segcore/Record.h"
+#include "storage/GrowingMmapChunkManagerSingleton.h"
 
 namespace milvus::segcore {
 
@@ -290,8 +291,24 @@ class OffsetOrderedArray : public OffsetMap {
 
 template <bool is_sealed = false>
 struct InsertRecord {
-    InsertRecord(const Schema& schema, int64_t size_per_chunk)
-        : row_ids_(size_per_chunk), timestamps_(size_per_chunk) {
+    InsertRecord(const Schema& schema,
+                 const int64_t size_per_chunk,
+                 const int64_t id,
+                 const bool is_mmap = false)
+        : row_ids_(size_per_chunk),
+          timestamps_(size_per_chunk),
+          id_(id),
+          is_mmap_(is_mmap) {
+        if (is_mmap_) {
+            auto mmap_manager =
+                storage::GrowingMmapChunkManagerSingleton::GetInstance()
+                    .GetGrowingMmapChunkManager();
+            mmap_manager->Register(id_);
+            mmap_descriptor_ = std::make_shared<
+                std::pair<uint64_t, storage::GrowingMmapChunkManagerPtr>>(
+                id_, mmap_manager);
+        }
+
         std::optional<FieldId> pk_field_id = schema.get_primary_field_id();
 
         for (auto& field : schema) {
@@ -301,7 +318,7 @@ struct InsertRecord {
                 pk_field_id.value() == field_id) {
                 switch (field_meta.get_data_type()) {
                     case DataType::INT64: {
-                        if (is_sealed) {
+                        if constexpr (is_sealed) {
                             pk2offset_ =
                                 std::make_unique<OffsetOrderedArray<int64_t>>();
                         } else {
@@ -311,7 +328,7 @@ struct InsertRecord {
                         break;
                     }
                     case DataType::VARCHAR: {
-                        if (is_sealed) {
+                        if constexpr (is_sealed) {
                             pk2offset_ = std::make_unique<
                                 OffsetOrderedArray<std::string>>();
                         } else {
@@ -406,6 +423,12 @@ struct InsertRecord {
                                           field_meta.get_data_type()));
                 }
             }
+        }
+    }
+
+    ~InsertRecord() {
+        if (is_mmap_) {
+            mmap_descriptor_->second->UnRegister(id_);
         }
     }
 
@@ -530,6 +553,9 @@ struct InsertRecord {
         AssertInfo(fields_data_.find(field_id) != fields_data_.end(),
                    "Cannot find field_data with field_id: " +
                        std::to_string(field_id.get()));
+        AssertInfo(
+            fields_data_.at(field_id) != nullptr,
+            "fields_data_ at i is null" + std::to_string(field_id.get()));
         return fields_data_.at(field_id).get();
     }
 
@@ -558,8 +584,15 @@ struct InsertRecord {
     void
     append_field_data(FieldId field_id, int64_t size_per_chunk) {
         static_assert(IsScalar<Type> || IsSparse<Type>);
-        fields_data_.emplace(
-            field_id, std::make_unique<ConcurrentVector<Type>>(size_per_chunk));
+        if (!is_mmap_) {
+            fields_data_.emplace(
+                field_id,
+                std::make_unique<ConcurrentVector<Type>>(size_per_chunk));
+        } else {
+            fields_data_.emplace(field_id,
+                                 std::make_unique<ConcurrentVector<Type>>(
+                                     size_per_chunk, mmap_descriptor_));
+        }
     }
 
     // append a column of vector type
@@ -567,9 +600,15 @@ struct InsertRecord {
     void
     append_field_data(FieldId field_id, int64_t dim, int64_t size_per_chunk) {
         static_assert(std::is_base_of_v<VectorTrait, VectorType>);
-        fields_data_.emplace(field_id,
-                             std::make_unique<ConcurrentVector<VectorType>>(
-                                 dim, size_per_chunk));
+        if (!is_mmap_) {
+            fields_data_.emplace(field_id,
+                                 std::make_unique<ConcurrentVector<VectorType>>(
+                                     dim, size_per_chunk));
+        } else {
+            fields_data_.emplace(field_id,
+                                 std::make_unique<ConcurrentVector<VectorType>>(
+                                     dim, size_per_chunk, mmap_descriptor_));
+        }
     }
 
     void
@@ -617,9 +656,13 @@ struct InsertRecord {
     // pks to row offset
     std::unique_ptr<OffsetMap> pk2offset_;
 
+    int64_t id_;
+
  private:
     std::unordered_map<FieldId, std::unique_ptr<VectorBase>> fields_data_{};
     mutable std::shared_mutex shared_mutex_{};
+    bool is_mmap_;
+    storage::MmapChunkDescriptor mmap_descriptor_;
 };
 
 }  // namespace milvus::segcore

@@ -121,7 +121,10 @@ Search(CTraceContext c_trace,
 
 void
 DeleteRetrieveResult(CRetrieveResult* retrieve_result) {
-    std::free(const_cast<void*>(retrieve_result->proto_blob));
+    //std::free(const_cast<void*>(retrieve_result->proto_blob));
+    if (retrieve_result->proto_blob != nullptr) {
+        delete[] retrieve_result->proto_blob;
+    }
 }
 
 CStatus

@@ -20,6 +20,7 @@
 using namespace milvus;
 
 namespace {
+static constexpr int64_t seg_id = 101;
 auto
 generate_data(int N) {
     std::vector<char> raw_data;
@@ -98,7 +99,8 @@ TEST(InsertRecordTest, growing_int64_t) {
         "fakevec", DataType::VECTOR_FLOAT, 16, knowhere::metric::L2);
     auto i64_fid = schema->AddDebugField("age", DataType::INT64);
     schema->set_primary_field_id(i64_fid);
-    auto record = milvus::segcore::InsertRecord<false>(*schema, int64_t(32));
+    auto record =
+        milvus::segcore::InsertRecord<false>(*schema, int64_t(32), seg_id);
     const int N = 100000;
 
     for (int i = 1; i <= N; i++)
@@ -118,7 +120,8 @@ TEST(InsertRecordTest, growing_string) {
         "fakevec", DataType::VECTOR_FLOAT, 16, knowhere::metric::L2);
     auto i64_fid = schema->AddDebugField("name", DataType::VARCHAR);
     schema->set_primary_field_id(i64_fid);
-    auto record = milvus::segcore::InsertRecord<false>(*schema, int64_t(32));
+    auto record =
+        milvus::segcore::InsertRecord<false>(*schema, int64_t(32), seg_id);
     const int N = 100000;
 
     for (int i = 1; i <= N; i++)
@@ -138,7 +141,8 @@ TEST(InsertRecordTest, sealed_int64_t) {
         "fakevec", DataType::VECTOR_FLOAT, 16, knowhere::metric::L2);
     auto i64_fid = schema->AddDebugField("age", DataType::INT64);
     schema->set_primary_field_id(i64_fid);
-    auto record = milvus::segcore::InsertRecord<true>(*schema, int64_t(32));
+    auto record =
+        milvus::segcore::InsertRecord<true>(*schema, int64_t(32), seg_id);
     const int N = 100000;
 
     for (int i = N; i >= 1; i--)
@@ -159,7 +163,9 @@ TEST(InsertRecordTest, sealed_string) {
         "fakevec", DataType::VECTOR_FLOAT, 16, knowhere::metric::L2);
     auto i64_fid = schema->AddDebugField("name", DataType::VARCHAR);
     schema->set_primary_field_id(i64_fid);
-    auto record = milvus::segcore::InsertRecord<true>(*schema, int64_t(32));
+    int64_t seg_id = 101;
+    auto record =
+        milvus::segcore::InsertRecord<true>(*schema, int64_t(32), seg_id);
     const int N = 100000;
 
     for (int i = 1; i <= N; i++)

@@ -934,6 +934,8 @@ func (q *QuotaCenter) calculateWriteRates() error {
 	updateCollectionFactor(memFactors)
 	growingSegFactors := q.getGrowingSegmentsSizeFactor()
 	updateCollectionFactor(growingSegFactors)
+	diskFactors := q.getDiskFactor()
+	updateCollectionFactor(diskFactors)
 
 	ttCollections := make([]int64, 0)
 	memoryCollections := make([]int64, 0)
@@ -1147,6 +1149,57 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 			zap.Float64("lowWatermark", dataNodeMemoryLowWaterLevel),
 			zap.Float64("highWatermark", dataNodeMemoryHighWaterLevel))
 		updateCollectionFactor(factor, metric.Effect.CollectionIDs)
+	}
+	return collectionFactor
+}
+
+// getDiskFactor checks whether any node has disk resource issue,
+// and return the factor according to max disk water level.
+func (q *QuotaCenter) getDiskFactor() map[int64]float64 {
+	log := log.Ctx(context.Background()).WithRateGroup("rootcoord.QuotaCenter", 1.0, 60.0)
+	if !Params.QuotaConfig.DiskProtectionEnabled.GetAsBool() {
+		return make(map[int64]float64)
+	}
+	queryNodeGrowingMmapDiskLimit := Params.QueryNodeCfg.MaxMmapDiskPercentageForGrowing.GetAsUint64() * 1024 * 1024
+	queryNodeGrowingMmapLowWaterLevel := Params.QuotaConfig.QueryNodeGrowingMmapLowWaterLevel.GetAsFloat()
+	queryNodeGrowingMmapHighWaterLevel := Params.QuotaConfig.QueryNodeGrowingMmapHighWaterLevel.GetAsFloat()
+
+	collectionFactor := make(map[int64]float64)
+	updateCollectionFactor := func(factor float64, collections []int64) {
+		for _, collection := range collections {
+			_, ok := collectionFactor[collection]
+			if !ok || collectionFactor[collection] > factor {
+				collectionFactor[collection] = factor
+			}
+		}
+	}
+	for nodeID, metric := range q.queryNodeMetrics {
+		growingMmapDiskWaterLevel := float64(metric.GrowingMmapDiskUsage) / float64(queryNodeGrowingMmapDiskLimit)
+		if growingMmapDiskWaterLevel <= queryNodeGrowingMmapLowWaterLevel {
+			continue
+		}
+		if growingMmapDiskWaterLevel >= queryNodeGrowingMmapHighWaterLevel {
+			log.RatedWarn(10, "QuotaCenter: QueryNode growing mmap disk to high water level",
+				zap.String("Node", fmt.Sprintf("%s-%d", typeutil.QueryNodeRole, nodeID)),
+				zap.Int64s("collections", metric.Effect.CollectionIDs),
+				zap.Int64("UsedDisk", metric.GrowingMmapDiskUsage),
+				zap.Uint64("GrowingMmapDiskLimit", queryNodeGrowingMmapDiskLimit),
+				zap.Float64("curWatermark", growingMmapDiskWaterLevel),
+				zap.Float64("lowWatermark", queryNodeGrowingMmapLowWaterLevel),
+				zap.Float64("highWatermark", queryNodeGrowingMmapHighWaterLevel))
+			updateCollectionFactor(0, metric.Effect.CollectionIDs)
+			continue
+		}
+		factor := (queryNodeGrowingMmapHighWaterLevel - growingMmapDiskWaterLevel) / (queryNodeGrowingMmapHighWaterLevel - queryNodeGrowingMmapLowWaterLevel)
+		updateCollectionFactor(factor, metric.Effect.CollectionIDs)
+		log.RatedWarn(10, "QuotaCenter: QueryNode memory to low water level, limit writing rate",
+			zap.String("Node", fmt.Sprintf("%s-%d", typeutil.QueryNodeRole, nodeID)),
+			zap.Int64s("collections", metric.Effect.CollectionIDs),
+			zap.Uint64("UsedMem", metric.Hms.MemoryUsage),
+			zap.Uint64("TotalMem", metric.Hms.Memory),
+			zap.Float64("curWatermark", growingMmapDiskWaterLevel),
+			zap.Float64("lowWatermark", queryNodeGrowingMmapLowWaterLevel),
+			zap.Float64("highWatermark", queryNodeGrowingMmapHighWaterLevel))
 	}
 	return collectionFactor
 }
