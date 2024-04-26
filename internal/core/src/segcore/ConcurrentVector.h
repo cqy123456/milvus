@@ -32,60 +32,9 @@
 #include "common/Span.h"
 #include "common/Types.h"
 #include "common/Utils.h"
+#include "mmap/Chunk.h"
 
 namespace milvus::segcore {
-
-template <typename Type>
-class ThreadSafeVector {
- public:
-    template <typename... Args>
-    void
-    emplace_to_at_least(int64_t size, Args... args) {
-        if (size <= size_) {
-            return;
-        }
-        std::lock_guard lck(mutex_);
-        while (vec_.size() < size) {
-            vec_.emplace_back(std::forward<Args...>(args...));
-            ++size_;
-        }
-    }
-    const Type&
-    operator[](int64_t index) const {
-        AssertInfo(index < size_,
-                   fmt::format(
-                       "index out of range, index={}, size_={}", index, size_));
-        std::shared_lock lck(mutex_);
-        return vec_[index];
-    }
-
-    Type&
-    operator[](int64_t index) {
-        AssertInfo(index < size_,
-                   fmt::format(
-                       "index out of range, index={}, size_={}", index, size_));
-        std::shared_lock lck(mutex_);
-        return vec_[index];
-    }
-
-    int64_t
-    size() const {
-        return size_;
-    }
-
-    void
-    clear() {
-        std::lock_guard lck(mutex_);
-        size_ = 0;
-        vec_.clear();
-    }
-
- private:
-    std::atomic<int64_t> size_ = 0;
-    std::deque<Type> vec_;
-    mutable std::shared_mutex mutex_;
-};
-
 class VectorBase {
  public:
     explicit VectorBase(int64_t size_per_chunk)
@@ -139,8 +88,6 @@ class VectorBase {
 template <typename Type, bool is_type_entire_row = false>
 class ConcurrentVectorImpl : public VectorBase {
  public:
-    // constants
-    using Chunk = FixedVector<Type>;
     ConcurrentVectorImpl(ConcurrentVectorImpl&&) = delete;
     ConcurrentVectorImpl(const ConcurrentVectorImpl&) = delete;
 
@@ -163,17 +110,25 @@ class ConcurrentVectorImpl : public VectorBase {
                                    BinaryVector>>>>;
 
  public:
-    explicit ConcurrentVectorImpl(ssize_t elements_per_row,
-                                  int64_t size_per_chunk)
+    explicit ConcurrentVectorImpl(
+        ssize_t elements_per_row,
+        int64_t size_per_chunk,
+        storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : VectorBase(size_per_chunk),
           elements_per_row_(is_type_entire_row ? 1 : elements_per_row) {
+        if (mmap_descriptor == nullptr) {
+            chunks_ptr_ = std::make_unique<ThreadSafeChunkVector<Type>>();
+        } else {
+            chunks_ptr_ = std::make_unique<MmapThreadSafeChunkVector<Type>>(
+                mmap_descriptor);
+        }
     }
 
     Span<TraitType>
     get_span(int64_t chunk_id) const {
-        auto& chunk = get_chunk(chunk_id);
+        auto chunk_data = chunks_ptr_->get_chunk(chunk_id);
         if constexpr (is_type_entire_row) {
-            return Span<TraitType>(chunk.data(), chunk.size());
+            return Span<TraitType>(chunk_data.data, chunk_data.size);
         } else if constexpr (std::is_same_v<Type, int64_t> ||  // NOLINT
                              std::is_same_v<Type, int>) {
             // only for testing
@@ -182,7 +137,7 @@ class ConcurrentVectorImpl : public VectorBase {
             static_assert(
                 std::is_same_v<typename TraitType::embedded_type, Type>);
             return Span<TraitType>(
-                chunk.data(), chunk.size(), elements_per_row_);
+                chunk_data.data, chunk_data.size, elements_per_row_);
         }
     }
 
@@ -193,13 +148,13 @@ class ConcurrentVectorImpl : public VectorBase {
 
     void
     fill_chunk_data(const std::vector<FieldDataPtr>& datas) override {
-        AssertInfo(chunks_.size() == 0, "non empty concurrent vector");
+        AssertInfo(chunks_ptr_->size() == 0, "non empty concurrent vector");
 
         int64_t element_count = 0;
         for (auto& field_data : datas) {
             element_count += field_data->get_num_rows();
         }
-        chunks_.emplace_to_at_least(1, elements_per_row_ * element_count);
+        chunks_ptr_->emplace_to_at_least(1, elements_per_row_ * element_count);
         int64_t offset = 0;
         for (auto& field_data : datas) {
             auto num_rows = field_data->get_num_rows();
@@ -226,26 +181,16 @@ class ConcurrentVectorImpl : public VectorBase {
         if (element_count == 0) {
             return;
         }
-        chunks_.emplace_to_at_least(
+        chunks_ptr_->emplace_to_at_least(
             upper_div(element_offset + element_count, size_per_chunk_),
             elements_per_row_ * size_per_chunk_);
         set_data(
             element_offset, static_cast<const Type*>(source), element_count);
     }
 
-    const Chunk&
-    get_chunk(ssize_t chunk_index) const {
-        return chunks_[chunk_index];
-    }
-
-    Chunk&
-    get_chunk(ssize_t index) {
-        return chunks_[index];
-    }
-
     const void*
     get_chunk_data(ssize_t chunk_index) const override {
-        return chunks_[chunk_index].data();
+        return (const void*)chunks_ptr_->get_chunk_data(chunk_index);
     }
 
     // just for fun, don't use it directly
@@ -253,7 +198,8 @@ class ConcurrentVectorImpl : public VectorBase {
     get_element(ssize_t element_index) const {
         auto chunk_id = element_index / size_per_chunk_;
         auto chunk_offset = element_index % size_per_chunk_;
-        return get_chunk(chunk_id).data() + chunk_offset * elements_per_row_;
+        return chunks_ptr_->get_chunk_data(chunk_id) +
+               chunk_offset * elements_per_row_;
     }
 
     const Type&
@@ -265,18 +211,18 @@ class ConcurrentVectorImpl : public VectorBase {
                 elements_per_row_));
         auto chunk_id = element_index / size_per_chunk_;
         auto chunk_offset = element_index % size_per_chunk_;
-        return get_chunk(chunk_id)[chunk_offset];
+        return chunks_ptr_->get_chunk_data(chunk_id)[chunk_offset];
     }
 
     ssize_t
     num_chunk() const override {
-        return chunks_.size();
+        return chunks_ptr_->size();
     }
 
     bool
     empty() override {
-        for (size_t i = 0; i < chunks_.size(); i++) {
-            if (get_chunk(i).size() > 0) {
+        for (size_t i = 0; i < chunks_ptr_->size(); i++) {
+            if (chunks_ptr_->get_chunk_data_size(i) > 0) {
                 return false;
             }
         }
@@ -286,7 +232,12 @@ class ConcurrentVectorImpl : public VectorBase {
 
     void
     clear() override {
-        chunks_.clear();
+        chunks_ptr_->clear();
+    }
+
+    Chunk<Type>
+    get_chunk(ssize_t index) const {
+        return chunks_ptr_->get_chunk(index);
     }
 
  private:
@@ -335,15 +286,13 @@ class ConcurrentVectorImpl : public VectorBase {
         if (element_count <= 0) {
             return;
         }
-        auto chunk_num = chunks_.size();
+        auto chunk_num = chunks_ptr_->size();
         AssertInfo(
             chunk_id < chunk_num,
             fmt::format("chunk_id out of chunk num, chunk_id={}, chunk_num={}",
                         chunk_id,
                         chunk_num));
-        Chunk& chunk = chunks_[chunk_id];
-        auto ptr = chunk.data();
-
+        auto ptr = (Type*)chunks_ptr_->get_chunk_data(chunk_id);
         std::copy_n(source + source_offset * elements_per_row_,
                     element_count * elements_per_row_,
                     ptr + chunk_offset * elements_per_row_);
@@ -352,16 +301,18 @@ class ConcurrentVectorImpl : public VectorBase {
     const ssize_t elements_per_row_;
 
  private:
-    ThreadSafeVector<Chunk> chunks_;
+    ThreadSafeChunkVectorPtr<Type> chunks_ptr_ = nullptr;
 };
 
 template <typename Type>
 class ConcurrentVector : public ConcurrentVectorImpl<Type, true> {
  public:
     static_assert(IsScalar<Type> || std::is_same_v<Type, PkType>);
-    explicit ConcurrentVector(int64_t size_per_chunk)
+    explicit ConcurrentVector(
+        int64_t size_per_chunk,
+        storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : ConcurrentVectorImpl<Type, true>::ConcurrentVectorImpl(
-              1, size_per_chunk) {
+              1, size_per_chunk, mmap_descriptor) {
     }
 };
 
@@ -369,9 +320,13 @@ template <>
 class ConcurrentVector<SparseFloatVector>
     : public ConcurrentVectorImpl<knowhere::sparse::SparseRow<float>, true> {
  public:
-    explicit ConcurrentVector(int64_t size_per_chunk)
+    explicit ConcurrentVector(
+        int64_t size_per_chunk,
+        storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : ConcurrentVectorImpl<knowhere::sparse::SparseRow<float>,
-                               true>::ConcurrentVectorImpl(1, size_per_chunk),
+                               true>::ConcurrentVectorImpl(1,
+                                                           size_per_chunk,
+                                                           mmap_descriptor),
           dim_(0) {
     }
 
@@ -403,9 +358,11 @@ template <>
 class ConcurrentVector<FloatVector>
     : public ConcurrentVectorImpl<float, false> {
  public:
-    ConcurrentVector(int64_t dim, int64_t size_per_chunk)
+    ConcurrentVector(int64_t dim,
+                     int64_t size_per_chunk,
+                     storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : ConcurrentVectorImpl<float, false>::ConcurrentVectorImpl(
-              dim, size_per_chunk) {
+              dim, size_per_chunk, mmap_descriptor) {
     }
 };
 
@@ -413,8 +370,11 @@ template <>
 class ConcurrentVector<BinaryVector>
     : public ConcurrentVectorImpl<uint8_t, false> {
  public:
-    explicit ConcurrentVector(int64_t dim, int64_t size_per_chunk)
-        : ConcurrentVectorImpl(dim / 8, size_per_chunk) {
+    explicit ConcurrentVector(
+        int64_t dim,
+        int64_t size_per_chunk,
+        storage::MmapChunkDescriptor mmap_descriptor = nullptr)
+        : ConcurrentVectorImpl(dim / 8, size_per_chunk, mmap_descriptor) {
         AssertInfo(dim % 8 == 0,
                    fmt::format("dim is not a multiple of 8, dim={}", dim));
     }
@@ -424,9 +384,11 @@ template <>
 class ConcurrentVector<Float16Vector>
     : public ConcurrentVectorImpl<float16, false> {
  public:
-    ConcurrentVector(int64_t dim, int64_t size_per_chunk)
+    ConcurrentVector(int64_t dim,
+                     int64_t size_per_chunk,
+                     storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : ConcurrentVectorImpl<float16, false>::ConcurrentVectorImpl(
-              dim, size_per_chunk) {
+              dim, size_per_chunk, mmap_descriptor) {
     }
 };
 
@@ -434,9 +396,11 @@ template <>
 class ConcurrentVector<BFloat16Vector>
     : public ConcurrentVectorImpl<bfloat16, false> {
  public:
-    ConcurrentVector(int64_t dim, int64_t size_per_chunk)
+    ConcurrentVector(int64_t dim,
+                     int64_t size_per_chunk,
+                     storage::MmapChunkDescriptor mmap_descriptor = nullptr)
         : ConcurrentVectorImpl<bfloat16, false>::ConcurrentVectorImpl(
-              dim, size_per_chunk) {
+              dim, size_per_chunk, mmap_descriptor) {
     }
 };
 

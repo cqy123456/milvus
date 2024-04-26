@@ -19,6 +19,7 @@
 #include "storage/RemoteChunkManagerSingleton.h"
 #include "storage/LocalChunkManagerSingleton.h"
 #include "storage/ChunkCacheSingleton.h"
+#include "storage/GrowingMmapChunkManagerSingleton.h"
 
 CStatus
 GetLocalUsedSize(const char* c_dir, int64_t* size) {
@@ -92,6 +93,32 @@ InitChunkCacheSingleton(const char* c_dir_path, const char* read_ahead_policy) {
             c_dir_path, read_ahead_policy);
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {
+        return milvus::FailureCStatus(&e);
+    }
+}
+
+CStatus
+InitGrowingMmapChunkManagerSingleton(const char* c_dir_path,
+                                     uint64_t disk_limit,
+                                     uint64_t file_size) {
+    try {
+        milvus::storage::GrowingMmapChunkManagerSingleton::GetInstance().Init(
+            c_dir_path, disk_limit, file_size);
+        return milvus::SuccessCStatus();
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(&e);
+    }
+}
+
+CStatus
+GetGrowingMmapUsedSize(int64_t* size) {
+    try {
+        auto growing_mmap_chunk_manager =
+            milvus::storage::GrowingMmapChunkManagerSingleton::GetInstance()
+                .GetGrowingMmapChunkManager();
+        (*size) = growing_mmap_chunk_manager->GetDiskUsage();
+        return milvus::SuccessCStatus();
+    } catch (std::exception(&e)) {
         return milvus::FailureCStatus(&e);
     }
 }

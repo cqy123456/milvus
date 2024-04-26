@@ -312,7 +312,7 @@ queryNode:
     knowhereThreadPoolNumRatio: 4 # The number of threads in knowhere's thread pool. If disk is enabled, the pool size will multiply with knowhereThreadPoolNumRatio([1, 32]).
     chunkRows: 128 # The number of vectors in a chunk.
     interimIndex:
-      enableIndex: true # Enable segment build with index to accelerate vector search when segment is in growing or binlog.
+      enableIndex: false # Enable segment build with index to accelerate vector search when segment is in growing or binlog.
       nlist: 128 # temp index nlist, recommend to set sqrt(chunkRows), must smaller than chunkRows/8
       nprobe: 16 # nprobe to search small index, based on your accuracy requirement, must smaller than nlist
       memExpansionRate: 1.15 # extra memory needed by building interim index
@@ -332,8 +332,11 @@ queryNode:
     # 2. If set to "off," original vector data will only be loaded into the chunk cache during search/query.
     warmup: async
   mmap:
-    mmapEnabled: false # Enable mmap for loading data
-  mmapEnabled: false # Enable mmap for loading data
+    mmapEnabled: true # Enable mmap for loading data
+    mmapDirPath: /var/lib/milvus/mmap/ #The folder that storing data files for mmap, setting to a path will enable Milvus to load data with mmap
+    growingMmapFileSize: 16 #MB, fixed file size for growing segments to store chunk data
+    maxDiskUsageForGrowing: 10240 #MB, max disk usage for growing segment
+  mmapEnabled: true # Enable mmap for loading data
   lazyloadEnabled: false # Enable lazyload for loading data
   grouping:
     enabled: true
@@ -751,6 +754,8 @@ quotaAndLimits:
       diskQuotaPerDB: -1 # MB, (0, +inf), default no limit
       diskQuotaPerCollection: -1 # MB, (0, +inf), default no limit
       diskQuotaPerPartition: -1 # MB, (0, +inf), default no limit
+      queryNodeGrowingMmapLowWaterLevel: 0.4 # (0, 1], queryNodeGrowingMmapLowWaterLevel in QueryNodes
+      queryNodeGrowingMmapHighWaterLevel: 0.9 # (0, 1], queryNodeGrowingMmapHighWaterLevel in QueryNodes
   limitReading:
     # forceDeny false means dql requests are allowed (except for some
     # specific conditions, such as collection has been dropped), true means always reject all dql requests.
