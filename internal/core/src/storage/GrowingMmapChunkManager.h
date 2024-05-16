@@ -13,7 +13,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #pragma once
 #include <cstdint>
 #include <cstring>
@@ -25,77 +24,47 @@
 #include <memory>
 #include <shared_mutex>
 #include "common/EasyAssert.h"
+#include "log/Log.h"
 namespace milvus::storage {
 /**
- * @brief keeping all information of tmp files
+ * @brief MmapBlock is a basic unit of MmapChunkManager. It handle all memory mmaping in one tmp file.
+ * static function(TotalBlocksSize) is used to get total files size of chunk mmap.
  */
-struct MmapState {
+struct MmapBlock {
  public:
-    MmapState(const uint64_t disk_limit,
-              const uint64_t fix_file_size,
-              const std::string file_prefix)
-        : max_disk_limit(disk_limit),
-          mmap_file_prefix(file_prefix),
-          fix_mmap_file_size(fix_file_size) {
-        mmmap_file_counter.store(0);
-    }
-    std::string
-    GetMmapFilePath() {
-        auto file_id = mmmap_file_counter.fetch_add(1);
-        return mmap_file_prefix + "/" + std::to_string(file_id);
-    }
-    uint64_t
-    GetDiskLimit() {
-        return max_disk_limit;
-    }
-    uint64_t
-    GetFixFileSize() {
-        return fix_mmap_file_size;
-    }
-    std::string
-    GetFilePrefix() {
-        return mmap_file_prefix;
-    }
-
- private:
-    uint64_t max_disk_limit;
-    std::string mmap_file_prefix;
-    std::atomic<uint64_t> mmmap_file_counter;
-    uint64_t fix_mmap_file_size;
-};
-using MmapStatePtr = std::shared_ptr<MmapState>;
-
-/**
- * @brief MmapEntry handle all memory mmaping in one tmp file
- */
-struct MmapEntry {
- public:
-    enum class EntryType {
-        NORMAL = 0,
-        LARGE = 1,
+    enum class BlockType {
+        Fixed = 0,
+        Variable = 1,
     };
-    // create a new mmap file and init some objs
-    MmapEntry(const std::string& file_name,
+    MmapBlock(const std::string& file_name,
               const uint64_t file_size,
-              EntryType type = EntryType::NORMAL);
-    ~MmapEntry();
+              BlockType type = BlockType::Fixed);
+    ~MmapBlock();
     void
-    Clear() {
-        offset_.store(0);
-    }
+    Init();
+    void
+    Close();
     void*
-    Allocate(const uint64_t size, ErrorCode& error_code);
+    Get(const uint64_t size, ErrorCode& error_code);
     void
     Reset() {
-        return offset_.store(0);
+        offset_.store(0);
     }
-    EntryType
+    BlockType
     GetType() {
-        return entry_type_;
+        return block_type_;
     }
     uint64_t
     GetCapacity() {
         return file_size_;
+    }
+    static void
+    ClearAllocSize() {
+        allocated_size_.store(0);
+    }
+    static uint64_t
+    TotalBlocksSize() {
+        return allocated_size_.load();
     }
 
  private:
@@ -103,48 +72,89 @@ struct MmapEntry {
     const uint64_t file_size_;
     char* addr_ = nullptr;
     std::atomic<uint64_t> offset_ = 0;
-    const EntryType entry_type_;
+    const BlockType block_type_;
+    std::atomic<bool> is_valid_ = false;
+    static inline std::atomic<uint64_t> allocated_size_ =
+        0;  //keeping the total size used in
 };
-using MmapEntryPtr = std::shared_ptr<MmapEntry>;
+using MmapBlockPtr = std::unique_ptr<MmapBlock>;
 
-/*
-* @brief keeping free tmp files in a queue 
-*/
-class FixedSizeMmapEntryQueue {
+/**
+ * @brief MmapBlocksHandler is used to handle the creation and destruction of mmap blocks
+ */
+class MmapBlocksHandler {
  public:
-    FixedSizeMmapEntryQueue(const MmapStatePtr& entry_meta_ptr)
-        : mmap_entry_meta_ptr_(entry_meta_ptr) {
-        free_disk_size_.store(0);
+    MmapBlocksHandler(const uint64_t disk_limit,
+                      const uint64_t fix_file_size,
+                      const std::string file_prefix)
+        : max_disk_limit_(disk_limit),
+          mmap_file_prefix_(file_prefix),
+          fix_mmap_file_size_(fix_file_size) {
+        mmmap_file_counter_.store(0);
+        MmapBlock::ClearAllocSize();
     }
-    MmapEntryPtr
-    Pop();
-    void
-    Push(MmapEntryPtr&& entry);
-    void
-    Fit(const uint64_t size);
-    void
-    Clear();
+    ~MmapBlocksHandler() {
+        ClearCache();
+    }
     uint64_t
-    GetSize() {
-        return free_disk_size_.load();
+    GetDiskLimit() {
+        return max_disk_limit_;
     }
+    uint64_t
+    GetFixFileSize() {
+        return fix_mmap_file_size_;
+    }
+    uint64_t
+    Capacity() {
+        return MmapBlock::TotalBlocksSize();
+    }
+    uint64_t
+    Size() {
+        return Capacity() - fix_size_blocks_cache_.size() * fix_mmap_file_size_;
+    }
+    MmapBlockPtr
+    AllocateFixSizeBlock();
+    MmapBlockPtr
+    AllocateLargeBlock(const uint64_t size);
+    void
+    Deallocate(MmapBlockPtr&& block);
 
  private:
-    //std::shared_mutex entry_mtx_;
-    MmapStatePtr mmap_entry_meta_ptr_;
-    std::queue<MmapEntryPtr> queuing_entries_;
-    std::atomic<uint64_t> free_disk_size_;  // bytes
+    std::string
+    GetFilePrefix() {
+        return mmap_file_prefix_;
+    }
+    std::string
+    GetMmapFilePath() {
+        auto file_id = mmmap_file_counter_.fetch_add(1);
+        return mmap_file_prefix_ + "/" + std::to_string(file_id);
+    }
+    void
+    ClearCache();
+    void
+    FitCache(const uint64_t size);
+
+ private:
+    uint64_t max_disk_limit_;
+    std::string mmap_file_prefix_;
+    std::atomic<uint64_t> mmmap_file_counter_;
+    uint64_t fix_mmap_file_size_;
+    std::queue<MmapBlockPtr> fix_size_blocks_cache_;
+    const float cache_threshold = 0.25;
 };
 
 /**
- * @brief GrowingMmapFileManager
+ * @brief GrowingMmapFileManager(singleton)
+ * GrowingMmapFileManager manages the memory-mapping space of all growing segments;
+ * GrowingMmapFileManager uses blocks_table_ to record the relationship of growing segment and the mapp space it uses.
+ * The basic space unit of MmapChunkManager is MmapBlock, and is managed by MmapBlocksHandler.
  */
-class GrowingMmapChunkManager {
+class MmapChunkManager {
  public:
-    GrowingMmapChunkManager(const std::string prefix,
-                            const uint64_t max_limit,
-                            const uint64_t file_size);
-    ~GrowingMmapChunkManager();
+    MmapChunkManager(const std::string prefix,
+                     const uint64_t max_limit,
+                     const uint64_t file_size);
+    ~MmapChunkManager();
     void
     Register(const uint64_t key);
     void
@@ -152,25 +162,64 @@ class GrowingMmapChunkManager {
     inline bool
     HasKey(const uint64_t key);
     void*
-    Allocate(const uint64_t key, const uint64_t size, ErrorCode& error_code);
-    uint64_t
-    GetDiskUsage() {
-        return used_disk_size_.load();
-    }
+    Allocate(const uint64_t key, const uint64_t size);
     uint64_t
     GetDiskAllocSize() {
-        return queuing_entries_.GetSize() + used_disk_size_.load();
+        std::shared_lock<std::shared_mutex> lck(mtx_);
+        return blocks_handler_.Capacity();
+    }
+    uint64_t
+    GetDiskUsage() {
+        std::shared_lock<std::shared_mutex> lck(mtx_);
+        return blocks_handler_.Size();
+    }
+    static void
+    InitMmapChunkManager(std::string root_path,
+                         const uint64_t disk_limit,
+                         const uint64_t file_size) {
+        if (chunk_manager_ != nullptr) {
+            LOG_INFO("MappChunkManage has been setted");
+        } else {
+            chunk_manager_ = std::make_shared<MmapChunkManager>(
+                root_path, disk_limit, file_size);
+            LOG_INFO(
+                "Init MappChunkManage with: Path {}, MaxDiskSize {} MB, "
+                "FixedFileSize {} MB.",
+                root_path,
+                disk_limit / (1024 * 1024),
+                file_size / (1024 * 1024));
+        }
+    }
+    static std::shared_ptr<MmapChunkManager>
+    GetMmapChunkManager() {
+        if (chunk_manager_ == nullptr) {
+            LOG_WARN(
+                "Can't not get MmapChunkManager before calling "
+                "InitMmapChunkManager().");
+            return nullptr;
+        } else {
+            return chunk_manager_;
+        }
+    }
+    uint64_t
+    GetMmapChunkManagerUsedSize() {
+        auto mmap_manager = GetMmapChunkManager();
+        if (mmap_manager == nullptr) {
+            return 0;
+        } else {
+            return mmap_manager->GetDiskUsage();
+        }
     }
 
  private:
-    MmapStatePtr mmap_entry_meta_ptr_ = nullptr;
-    // keep two struct(queue_entries_ and activate_entries_) to maintain (idle and busy) entries;
-    mutable std::shared_mutex activate_entries_mtx_;
-    std::unordered_map<uint64_t, std::vector<MmapEntryPtr>> activate_entries_;
-    FixedSizeMmapEntryQueue queuing_entries_;
-    std::atomic<uint64_t> used_disk_size_;  // bytes
+    mutable std::shared_mutex mtx_;
+    std::unordered_map<uint64_t, std::vector<MmapBlockPtr>> blocks_table_;
+    MmapBlocksHandler blocks_handler_;
+    std::string mmap_file_prefix_;
+    inline static std::shared_ptr<MmapChunkManager> chunk_manager_ = nullptr;
 };
-using GrowingMmapChunkManagerPtr = std::shared_ptr<GrowingMmapChunkManager>;
+using GrowingMmapChunkManagerPtr = std::shared_ptr<MmapChunkManager>;
 using MmapChunkDescriptor =
     std::shared_ptr<std::pair<std::uint64_t, GrowingMmapChunkManagerPtr>>;
+
 }  // namespace milvus::storage

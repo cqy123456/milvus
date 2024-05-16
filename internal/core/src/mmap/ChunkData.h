@@ -28,13 +28,10 @@ struct FixedLengthChunk {
                               storage::MmapChunkDescriptor descriptor)
         : mmap_descriptor_(descriptor), size_(size) {
         auto& mmap_manager = mmap_descriptor_->second;
-        milvus::ErrorCode err_code;
         data_ = (Type*)(mmap_manager->Allocate(
-            mmap_descriptor_->first, sizeof(Type) * size, err_code));
+            mmap_descriptor_->first, sizeof(Type) * size));
         AssertInfo(data_ != nullptr,
-                   "failed to create a mmapchunk: {}, map_size={}",
-                   strerror(err_code),
-                   size);
+                   "failed to create a mmapchunk: {}, map_size");
     };
     void*
     data() {
@@ -125,10 +122,9 @@ VariableLengthChunk<std::string>::set(const std::string* src,
     for (auto i = 0; i < length; i++) {
         auto buf_size = src[i].size() + 1;
         auto buf = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, buf_size, err_code);
-        AssertInfo(err_code == ErrorCode::Success,
-                   "failed to allocate memory from mmap_manager, error_code:{}",
-                   err_code);
+            mmap_descriptor_->first, buf_size);
+        AssertInfo(buf != nullptr,
+                   "failed to allocate memory from mmap_manager, error_code");
         std::strcpy(buf, src[i].c_str());
         data_[i + begin] = std::string_view(buf, src[i].size());
     }
@@ -155,10 +151,9 @@ VariableLengthChunk<Json>::set(const Json* src,
     for (auto i = 0; i < length; i++) {
         auto buf_size = src[i].size() + simdjson::SIMDJSON_PADDING + 1;
         auto buf = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, buf_size, err_code);
-        AssertInfo(err_code == ErrorCode::Success,
-                   "failed to allocate memory from mmap_manager, error_code:{}",
-                   err_code);
+            mmap_descriptor_->first, buf_size);
+        AssertInfo(buf != nullptr,
+                   "failed to allocate memory from mmap_manager, error_code:{}");
         std::strcpy(buf, src[i].c_str());
         data_[i + begin] = Json(buf, src[i].size());
     }
@@ -183,10 +178,9 @@ VariableLengthChunk<Array>::set(const Array* src,
         size_);
     for (auto i = 0; i < length; i++) {
         auto array_data = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, src[i].byte_size(), err_code);
-        AssertInfo(err_code == ErrorCode::Success,
-                   "failed to allocate memory from mmap_manager, error_code:{}",
-                   err_code);
+            mmap_descriptor_->first, src[i].byte_size());
+        AssertInfo(array_data!=nullptr,
+                   "failed to allocate memory from mmap_manager, error_code");
         std::copy(
             src[i].data(), src[i].data() + src[i].byte_size(), array_data);
         data_[i + begin] = ArrayView(array_data,

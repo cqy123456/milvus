@@ -31,48 +31,78 @@ static constexpr int kMmapDefaultFlags = MAP_SHARED;
 
 // todo(cqy): After confirming the append parallelism of multiple fields, adjust the lock granularity.
 
-MmapEntry::MmapEntry(const std::string& file_name,
+MmapBlock::MmapBlock(const std::string& file_name,
                      const uint64_t file_size,
-                     EntryType type)
-    : file_name_(file_name), file_size_(file_size), entry_type_(type) {
+                     BlockType type)
+    : file_name_(file_name),
+      file_size_(file_size),
+      block_type_(type),
+      is_valid_(false) {
+}
+
+void
+MmapBlock::Init() {
+    allocated_size_.fetch_add(file_size_);
     // create tmp file
+    std::stringstream err_msg;
     int fd = open(file_name_.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (fd == -1) {
-        LOG_ERROR("Failed to open mmap tmp file");
-        return;
+        err_msg << "Failed to open mmap tmp file";
+        throw SegcoreError(ErrorCode::FileCreateFailed, err_msg.str());
     }
     // append file size to 'file_size'
-    if (lseek(fd, file_size - 1, SEEK_SET) == -1) {
-        LOG_ERROR("Failed to seek mmap tmp file");
-        return;
+    if (lseek(fd, file_size_ - 1, SEEK_SET) == -1) {
+        err_msg << "Failed to seek mmap tmp file";
+        throw SegcoreError(ErrorCode::FileReadFailed, err_msg.str());
     }
     if (write(fd, "", 1) == -1) {
-        LOG_ERROR("Failed to write mmap tmp file");
-        return;
+        err_msg << "Failed to write mmap tmp file";
+        throw SegcoreError(ErrorCode::FileWriteFailed, err_msg.str());
     }
     // memory mmaping
     addr_ = static_cast<char*>(
-        mmap(nullptr, file_size, kMmapDefaultProt, kMmapDefaultFlags, fd, 0));
+        mmap(nullptr, file_size_, kMmapDefaultProt, kMmapDefaultFlags, fd, 0));
     if (addr_ == MAP_FAILED) {
-        LOG_ERROR("Failed to mmap");
-        return;
+        err_msg << "Failed to mmap in mmap_block";
+        throw SegcoreError(ErrorCode::FileWriteFailed, err_msg.str());
     }
     offset_.store(0);
+    is_valid_ = true;
+    close(fd);
 }
 
-MmapEntry::~MmapEntry() {
+void
+MmapBlock::Close() {
+    std::stringstream err_msg;
     if (addr_ != nullptr) {
-        munmap(addr_, file_size_);
+        if (munmap(addr_, file_size_) != 0) {
+            err_msg << "Failed to munmap in mmap_block";
+            throw SegcoreError(ErrorCode::MemAllocateSizeNotMatch, err_msg.str());
+        }
     }
-    if (std::ifstream(file_name_.c_str()).good()) {
-        std::remove(file_name_.c_str());
+    if (access(file_name_.c_str(), F_OK) == 0) {
+        if (remove(file_name_.c_str()) != 0) {
+            throw SegcoreError(ErrorCode::MemAllocateSizeNotMatch, err_msg.str());
+        }
+    }
+    is_valid_ = false;
+}
+
+MmapBlock::~MmapBlock() {
+    if (is_valid_ = true) {
+        try {
+            Close();
+        } catch (const std::exception& e) {
+            LOG_ERROR(e.what());
+        }
     }
 }
 
 void*
-MmapEntry::Allocate(const uint64_t size, ErrorCode& error_code) {
+MmapBlock::Get(const uint64_t size, ErrorCode& error_code) {
+    AssertInfo(is_valid_, "Fail to get memory from invalid MmapBlock.");
     if (file_size_ - offset_.load() < size) {
-        error_code = ErrorCode::MemAllocateFailed;
+        error_code = ErrorCode::MemAllocateSizeNotMatch;
         return nullptr;
     } else {
         error_code = ErrorCode::Success;
@@ -80,158 +110,162 @@ MmapEntry::Allocate(const uint64_t size, ErrorCode& error_code) {
     }
 }
 
-MmapEntryPtr
-FixedSizeMmapEntryQueue::Pop() {
-    if (queuing_entries_.empty()) {
-        return std::make_unique<MmapEntry>(
-            mmap_entry_meta_ptr_->GetMmapFilePath(),
-            mmap_entry_meta_ptr_->GetFixFileSize(),
-            MmapEntry::EntryType::NORMAL);
+MmapBlockPtr
+MmapBlocksHandler::AllocateFixSizeBlock() {
+    if (fix_size_blocks_cache_.size() != 0) {
+        // return a mmap_block in fix_size_blocks_cache_
+        auto block = std::move(fix_size_blocks_cache_.front());
+        fix_size_blocks_cache_.pop();
+        return std::move(block);
     } else {
-        auto entry = queuing_entries_.back();
-        free_disk_size_.fetch_sub(entry->GetCapacity());
-        queuing_entries_.pop();
-        return entry;
+        // if space not enough for create a new block, clear cache and check again
+        if (GetFixFileSize() + Size() > max_disk_limit_) {
+            std::stringstream err_msg;
+            err_msg << "Failed to create a new mmap_block, not enough disk for "
+                       "create a new mmap block";
+            throw SegcoreError(ErrorCode::MemAllocateSizeNotMatch, err_msg.str());
+        }
+        auto new_block = std::make_unique<MmapBlock>(
+            GetMmapFilePath(), GetFixFileSize(), MmapBlock::BlockType::Fixed);
+        new_block->Init();
+        return std::move(new_block);
+    }
+}
+
+MmapBlockPtr
+MmapBlocksHandler::AllocateLargeBlock(const uint64_t size) {
+    if (size + Capacity() > max_disk_limit_) {
+        ClearCache();
+    }
+    if (size + Size() > max_disk_limit_) {
+        std::stringstream err_msg;
+        err_msg << "Failed to create a new mmap_block, not enough disk for "
+                   "create a new mmap block";
+        throw SegcoreError(ErrorCode::MemAllocateSizeNotMatch, err_msg.str());
+    }
+    auto new_block = std::make_unique<MmapBlock>(
+        GetMmapFilePath(), size, MmapBlock::BlockType::Variable);
+    new_block->Init();
+    return std::move(new_block);
+}
+
+void
+MmapBlocksHandler::Deallocate(MmapBlockPtr&& block) {
+    if (block->GetType() == MmapBlock::BlockType::Fixed) {
+        // store the block in cache
+        block->Reset();
+        fix_size_blocks_cache_.push(std::move(block));
+        uint64_t max_cache_size =
+            uint64_t(cache_threshold * (float)max_disk_limit_);
+        if (fix_size_blocks_cache_.size() * fix_mmap_file_size_ >
+            max_cache_size) {
+            FitCache(max_cache_size);
+        }
+    } else {
+        // release the mmap
+        block->Close();
+        block = nullptr;
     }
 }
 
 void
-FixedSizeMmapEntryQueue::Push(MmapEntryPtr&& entry) {
-    free_disk_size_.fetch_add(entry->GetCapacity());
-    queuing_entries_.push(std::move(entry));
-    if (free_disk_size_ >= mmap_entry_meta_ptr_->GetDiskLimit() / 2) {
-        Fit(mmap_entry_meta_ptr_->GetDiskLimit() / 2);
+MmapBlocksHandler::ClearCache() {
+    while (!fix_size_blocks_cache_.empty()) {
+        auto block = std::move(fix_size_blocks_cache_.front());
+        block->Close();
+        fix_size_blocks_cache_.pop();
     }
 }
 
 void
-FixedSizeMmapEntryQueue::Fit(const uint64_t size) {
-    while (free_disk_size_.load() < size) {
-        free_disk_size_.fetch_sub(mmap_entry_meta_ptr_->GetFixFileSize());
-        queuing_entries_.pop();
+MmapBlocksHandler::FitCache(const uint64_t size) {
+    while (fix_size_blocks_cache_.size() * fix_mmap_file_size_ > size) {
+        fix_size_blocks_cache_.pop();
     }
 }
 
-void
-FixedSizeMmapEntryQueue::Clear() {
-    while (!queuing_entries_.empty()) {
-        queuing_entries_.pop();
-    }
-    free_disk_size_.store(0);
-}
-
-GrowingMmapChunkManager::GrowingMmapChunkManager(const std::string prefix,
-                                                 const uint64_t max_limit,
-                                                 const uint64_t file_size)
-    : mmap_entry_meta_ptr_(
-          std::make_shared<MmapState>(max_limit, file_size, prefix)),
-      queuing_entries_(FixedSizeMmapEntryQueue(mmap_entry_meta_ptr_)) {
+MmapChunkManager::MmapChunkManager(const std::string prefix,
+                                   const uint64_t max_limit,
+                                   const uint64_t file_size)
+    : blocks_handler_(max_limit, file_size, prefix), mmap_file_prefix_(prefix) {
     auto cm =
         storage::LocalChunkManagerSingleton::GetInstance().GetChunkManager();
     AssertInfo(cm != nullptr,
                "Fail to get LocalChunkManager, LocalChunkManagerPtr is null");
-
     if (cm->Exist(prefix)) {
         cm->RemoveDir(prefix);
     }
     cm->CreateDir(prefix);
-    used_disk_size_.store(0);
 }
 
-GrowingMmapChunkManager::~GrowingMmapChunkManager() {
-    auto prefix = mmap_entry_meta_ptr_->GetFilePrefix();
+MmapChunkManager::~MmapChunkManager() {
     auto cm =
         storage::LocalChunkManagerSingleton::GetInstance().GetChunkManager();
-    if (cm->Exist(prefix)) {
-        cm->RemoveDir(prefix);
+    if (cm->Exist(mmap_file_prefix_)) {
+        cm->RemoveDir(mmap_file_prefix_);
     }
 }
 
 void
-GrowingMmapChunkManager::Register(const uint64_t key) {
-    std::lock_guard lck(activate_entries_mtx_);
+MmapChunkManager::Register(const uint64_t key) {
+    std::unique_lock<std::shared_mutex> lck(mtx_);
     if (HasKey(key)) {
         LOG_WARN("key has exist in growing mmap manager");
         return;
     }
-    activate_entries_.emplace(key, std::vector<MmapEntryPtr>());
+    blocks_table_.emplace(key, std::vector<MmapBlockPtr>());
     return;
 }
 
 void
-GrowingMmapChunkManager::UnRegister(const uint64_t key) {
-    std::lock_guard lck(activate_entries_mtx_);
-    if (activate_entries_.find(key) != activate_entries_.end()) {
-        auto& entries = activate_entries_[key];
-        for (auto i = 0; i < entries.size(); i++) {
-            used_disk_size_.fetch_sub(entries[i]->GetCapacity());
-            if (entries[i]->GetType() == MmapEntry::EntryType::NORMAL) {
-                entries[i]->Clear();
-                queuing_entries_.Push(std::move(entries[i]));
-            } else {
-                entries[i] = nullptr;
-            }
+MmapChunkManager::UnRegister(const uint64_t key) {
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    if (blocks_table_.find(key) != blocks_table_.end()) {
+        auto& blocks = blocks_table_[key];
+        for (auto i = 0; i < blocks.size(); i++) {
+            blocks_handler_.Deallocate(std::move(blocks[i]));
         }
-        activate_entries_.erase(key);
+        blocks_table_.erase(key);
     }
 }
 
 inline bool
-GrowingMmapChunkManager::HasKey(const uint64_t key) {
-    return (activate_entries_.find(key) != activate_entries_.end());
+MmapChunkManager::HasKey(const uint64_t key) {
+    return (blocks_table_.find(key) != blocks_table_.end());
 }
 
 void*
-GrowingMmapChunkManager::Allocate(const uint64_t key,
-                                  const uint64_t size,
-                                  ErrorCode& error_code) {
-    std::lock_guard lck(activate_entries_mtx_);
-    if (!HasKey(key)) {
-        LOG_INFO("fail to alloc memory in mmap way, allocate key not exist.");
-        error_code = ErrorCode::MemAllocateFailed;
-        return nullptr;
-    }
-    // find a place to fix in
-    {
-        for (auto entry_id = 0; entry_id < activate_entries_[key].size();
-             entry_id++) {
-            auto addr =
-                activate_entries_[key][entry_id]->Allocate(size, error_code);
-            if (error_code == ErrorCode::Success) {
+MmapChunkManager::Allocate(const uint64_t key, const uint64_t size) {
+    std::unique_lock<std::shared_mutex> lck(mtx_);
+    AssertInfo(HasKey(key), "key {} has not been register.", key);
+    ErrorCode err_code;
+    if (size < blocks_handler_.GetFixFileSize()) {
+        // find a place to fit in
+        for (auto block_id = 0; block_id < blocks_table_[key].size();
+             block_id++) {
+            auto addr = blocks_table_[key][block_id]->Get(size, err_code);
+            if (err_code == ErrorCode::Success) {
                 return addr;
             }
         }
-    }
-    // not enough disk space to allocate
-    if (size + GetDiskUsage() > mmap_entry_meta_ptr_->GetDiskLimit()) {
-        error_code = ErrorCode::MemAllocateFailed;
-        return nullptr;
-    }
-    // get a new file to fit in
-    MmapEntryPtr entry = nullptr;
-    void* addr = nullptr;
-    if (size > mmap_entry_meta_ptr_->GetFixFileSize()) {
-        // clear queuing_entries_ to create a new file
-        if (size + GetDiskAllocSize() > mmap_entry_meta_ptr_->GetDiskLimit()) {
-            queuing_entries_.Clear();
-        }
-        entry =
-            std::make_unique<MmapEntry>(mmap_entry_meta_ptr_->GetMmapFilePath(),
-                                        size,
-                                        MmapEntry::EntryType::LARGE);
+        // create a new block
+        auto new_block = blocks_handler_.AllocateFixSizeBlock();
+        AssertInfo(new_block != nullptr, "new mmap_block can't be nullptr");
+        auto addr = new_block->Get(size, err_code);
+        AssertInfo(addr != nullptr && err_code == ErrorCode::Success,
+                   "fail to allocate from mmap block, error code: {}.",
+                   err_code);
+        blocks_table_[key].emplace_back(std::move(new_block));
+        return addr;
     } else {
-        entry = queuing_entries_.Pop();
+        auto new_block = blocks_handler_.AllocateLargeBlock(size);
+        AssertInfo(new_block != nullptr, "new mmap_block can't be nullptr");
+        auto addr = new_block->Get(size, err_code);
+        AssertInfo(addr != nullptr && err_code == ErrorCode::Success,
+                   "fail to allocate from mmap block, error code: {}.",
+                   err_code);
+        blocks_table_[key].emplace_back(std::move(new_block));
+        return addr;
     }
-
-    if (entry != nullptr) {
-        addr = entry->Allocate(size, error_code);
-        used_disk_size_.fetch_add(entry->GetCapacity());
-        activate_entries_[key].emplace_back(std::move(entry));
-    } else {
-        LOG_ERROR("fail to get a mmap entry");
-        error_code = ErrorCode::MemAllocateFailed;
-        return nullptr;
-    }
-    return addr;
 }
 }  // namespace milvus::storage

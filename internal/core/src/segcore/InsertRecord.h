@@ -30,7 +30,7 @@
 #include "segcore/AckResponder.h"
 #include "segcore/ConcurrentVector.h"
 #include "segcore/Record.h"
-#include "storage/GrowingMmapChunkManagerSingleton.h"
+#include "storage/GrowingMmapChunkManager.h"
 
 namespace milvus::segcore {
 
@@ -301,8 +301,7 @@ struct InsertRecord {
           is_mmap_(is_mmap) {
         if (is_mmap_) {
             auto mmap_manager =
-                storage::GrowingMmapChunkManagerSingleton::GetInstance()
-                    .GetGrowingMmapChunkManager();
+                storage::MmapChunkManager::GetMmapChunkManager();
             mmap_manager->Register(id_);
             mmap_descriptor_ = std::make_shared<
                 std::pair<uint64_t, storage::GrowingMmapChunkManagerPtr>>(
