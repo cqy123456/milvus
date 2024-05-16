@@ -169,7 +169,7 @@ class ConcurrentVectorImpl : public VectorBase {
     explicit ConcurrentVectorImpl(
         ssize_t elements_per_row,
         int64_t size_per_chunk,
-        storage::MmapChunkKey mmap_descriptor)
+        storage::MmapChunkKey mmap_descriptor = std::nullopt)
         : VectorBase(size_per_chunk),
           elements_per_row_(is_type_entire_row ? 1 : elements_per_row) {
         chunks_ptr_ = SelectChunkVectorPtr<Type>(mmap_descriptor);
