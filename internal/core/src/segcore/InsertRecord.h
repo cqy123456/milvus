@@ -300,12 +300,10 @@ struct InsertRecord {
           id_(id),
           is_mmap_(is_mmap) {
         if (is_mmap_) {
-            auto mmap_manager =
-                storage::MmapChunkManager::GetMmapChunkManager();
-            mmap_manager->Register(id_);
-            mmap_descriptor_ = std::make_shared<
-                std::pair<uint64_t, storage::GrowingMmapChunkManagerPtr>>(
-                id_, mmap_manager);
+            auto& mmap_manager =
+                storage::MmapChunkManager::get_instance();
+            mmap_manager.Register(id_);
+            mmap_descriptor_ = id;
         }
 
         std::optional<FieldId> pk_field_id = schema.get_primary_field_id();
@@ -427,7 +425,7 @@ struct InsertRecord {
 
     ~InsertRecord() {
         if (is_mmap_) {
-            mmap_descriptor_->second->UnRegister(id_);
+            storage::MmapChunkManager::get_instance().UnRegister(id_);
         }
     }
 
@@ -661,7 +659,7 @@ struct InsertRecord {
     std::unordered_map<FieldId, std::unique_ptr<VectorBase>> fields_data_{};
     mutable std::shared_mutex shared_mutex_{};
     bool is_mmap_;
-    storage::MmapChunkDescriptor mmap_descriptor_;
+    storage::MmapChunkKey mmap_descriptor_;
 };
 
 }  // namespace milvus::segcore

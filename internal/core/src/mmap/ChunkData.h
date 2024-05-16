@@ -25,11 +25,11 @@ struct FixedLengthChunk {
  public:
     FixedLengthChunk() = delete;
     explicit FixedLengthChunk(const uint64_t size,
-                              storage::MmapChunkDescriptor descriptor)
+                              storage::MmapChunkKey descriptor)
         : mmap_descriptor_(descriptor), size_(size) {
-        auto& mmap_manager = mmap_descriptor_->second;
-        data_ = (Type*)(mmap_manager->Allocate(
-            mmap_descriptor_->first, sizeof(Type) * size));
+        auto& mmap_manager = storage::MmapChunkManager::get_instance();
+        data_ = (Type*)(mmap_manager.Allocate(
+            mmap_descriptor_.value(), sizeof(Type) * size));
         AssertInfo(data_ != nullptr,
                    "failed to create a mmapchunk: {}, map_size");
     };
@@ -58,7 +58,7 @@ struct FixedLengthChunk {
  private:
     int64_t size_ = 0;
     Type* data_ = nullptr;
-    storage::MmapChunkDescriptor mmap_descriptor_ = nullptr;
+    storage::MmapChunkKey mmap_descriptor_ = std::nullopt;
 };
 /**
  * @brief VariableLengthChunk
@@ -70,7 +70,7 @@ struct VariableLengthChunk {
  public:
     VariableLengthChunk() = delete;
     explicit VariableLengthChunk(const uint64_t size,
-                                 storage::MmapChunkDescriptor descriptor)
+                                 storage::MmapChunkKey descriptor)
         : mmap_descriptor_(descriptor), size_(size) {
         data_ = FixedVector<ChunkViewType<Type>>(size);
     };
@@ -104,14 +104,14 @@ struct VariableLengthChunk {
  private:
     int64_t size_ = 0;
     FixedVector<ChunkViewType<Type>> data_;
-    storage::MmapChunkDescriptor mmap_descriptor_ = nullptr;
+    storage::MmapChunkKey mmap_descriptor_ = std::nullopt;
 };
 template <>
 inline void
 VariableLengthChunk<std::string>::set(const std::string* src,
                                       uint32_t begin,
                                       uint32_t length) {
-    auto& mmap_manager = mmap_descriptor_->second;
+    auto& mmap_manager = storage::MmapChunkManager::get_instance();
     milvus::ErrorCode err_code;
     AssertInfo(
         begin + length <= size_,
@@ -121,8 +121,8 @@ VariableLengthChunk<std::string>::set(const std::string* src,
         size_);
     for (auto i = 0; i < length; i++) {
         auto buf_size = src[i].size() + 1;
-        auto buf = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, buf_size);
+        auto buf = (char*)mmap_manager.Allocate(
+            mmap_descriptor_.value(), buf_size);
         AssertInfo(buf != nullptr,
                    "failed to allocate memory from mmap_manager, error_code");
         std::strcpy(buf, src[i].c_str());
@@ -140,7 +140,7 @@ inline void
 VariableLengthChunk<Json>::set(const Json* src,
                                uint32_t begin,
                                uint32_t length) {
-    auto& mmap_manager = mmap_descriptor_->second;
+    auto& mmap_manager = storage::MmapChunkManager::get_instance();
     milvus::ErrorCode err_code;
     AssertInfo(
         begin + length <= size_,
@@ -150,8 +150,8 @@ VariableLengthChunk<Json>::set(const Json* src,
         size_);
     for (auto i = 0; i < length; i++) {
         auto buf_size = src[i].size() + simdjson::SIMDJSON_PADDING + 1;
-        auto buf = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, buf_size);
+        auto buf = (char*)mmap_manager.Allocate(
+            mmap_descriptor_.value(), buf_size);
         AssertInfo(buf != nullptr,
                    "failed to allocate memory from mmap_manager, error_code:{}");
         std::strcpy(buf, src[i].c_str());
@@ -168,7 +168,7 @@ inline void
 VariableLengthChunk<Array>::set(const Array* src,
                                 uint32_t begin,
                                 uint32_t length) {
-    auto& mmap_manager = mmap_descriptor_->second;
+   auto& mmap_manager = storage::MmapChunkManager::get_instance();
     milvus::ErrorCode err_code;
     AssertInfo(
         begin + length <= size_,
@@ -177,8 +177,8 @@ VariableLengthChunk<Array>::set(const Array* src,
         begin,
         size_);
     for (auto i = 0; i < length; i++) {
-        auto array_data = (char*)mmap_manager->Allocate(
-            mmap_descriptor_->first, src[i].byte_size());
+        auto array_data = (char*)mmap_manager.Allocate(
+            mmap_descriptor_.value(), src[i].byte_size());
         AssertInfo(array_data!=nullptr,
                    "failed to allocate memory from mmap_manager, error_code");
         std::copy(

@@ -184,20 +184,6 @@ MmapBlocksHandler::FitCache(const uint64_t size) {
     }
 }
 
-MmapChunkManager::MmapChunkManager(const std::string prefix,
-                                   const uint64_t max_limit,
-                                   const uint64_t file_size)
-    : blocks_handler_(max_limit, file_size, prefix), mmap_file_prefix_(prefix) {
-    auto cm =
-        storage::LocalChunkManagerSingleton::GetInstance().GetChunkManager();
-    AssertInfo(cm != nullptr,
-               "Fail to get LocalChunkManager, LocalChunkManagerPtr is null");
-    if (cm->Exist(prefix)) {
-        cm->RemoveDir(prefix);
-    }
-    cm->CreateDir(prefix);
-}
-
 MmapChunkManager::~MmapChunkManager() {
     auto cm =
         storage::LocalChunkManagerSingleton::GetInstance().GetChunkManager();
@@ -223,7 +209,7 @@ MmapChunkManager::UnRegister(const uint64_t key) {
     if (blocks_table_.find(key) != blocks_table_.end()) {
         auto& blocks = blocks_table_[key];
         for (auto i = 0; i < blocks.size(); i++) {
-            blocks_handler_.Deallocate(std::move(blocks[i]));
+            blocks_handler_->Deallocate(std::move(blocks[i]));
         }
         blocks_table_.erase(key);
     }
@@ -239,7 +225,7 @@ MmapChunkManager::Allocate(const uint64_t key, const uint64_t size) {
     std::unique_lock<std::shared_mutex> lck(mtx_);
     AssertInfo(HasKey(key), "key {} has not been register.", key);
     ErrorCode err_code;
-    if (size < blocks_handler_.GetFixFileSize()) {
+    if (size < blocks_handler_->GetFixFileSize()) {
         // find a place to fit in
         for (auto block_id = 0; block_id < blocks_table_[key].size();
              block_id++) {
@@ -249,7 +235,7 @@ MmapChunkManager::Allocate(const uint64_t key, const uint64_t size) {
             }
         }
         // create a new block
-        auto new_block = blocks_handler_.AllocateFixSizeBlock();
+        auto new_block = blocks_handler_->AllocateFixSizeBlock();
         AssertInfo(new_block != nullptr, "new mmap_block can't be nullptr");
         auto addr = new_block->Get(size, err_code);
         AssertInfo(addr != nullptr && err_code == ErrorCode::Success,
@@ -258,7 +244,7 @@ MmapChunkManager::Allocate(const uint64_t key, const uint64_t size) {
         blocks_table_[key].emplace_back(std::move(new_block));
         return addr;
     } else {
-        auto new_block = blocks_handler_.AllocateLargeBlock(size);
+        auto new_block = blocks_handler_->AllocateLargeBlock(size);
         AssertInfo(new_block != nullptr, "new mmap_block can't be nullptr");
         auto addr = new_block->Get(size, err_code);
         AssertInfo(addr != nullptr && err_code == ErrorCode::Success,

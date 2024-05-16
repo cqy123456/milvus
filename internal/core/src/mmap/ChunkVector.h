@@ -54,7 +54,7 @@ template <typename Type,
           bool IsMmap = false>
 class ThreadSafeChunkVector : public ChunkVectorBase<Type> {
  public:
-    ThreadSafeChunkVector(storage::MmapChunkDescriptor descriptor = nullptr) {
+    ThreadSafeChunkVector(storage::MmapChunkKey descriptor = std::nullopt) {
         mmap_descriptor_ = descriptor;
     }
 
@@ -165,15 +165,15 @@ class ThreadSafeChunkVector : public ChunkVectorBase<Type> {
 
  private:
     mutable std::shared_mutex mutex_;
-    storage::MmapChunkDescriptor mmap_descriptor_ = nullptr;
+    storage::MmapChunkKey mmap_descriptor_ = std::nullopt;
     std::deque<ChunkImpl> vec_;
 };
 
 template <typename Type>
 ChunkVectorPtr<Type>
-SelectChunkVectorPtr(storage::MmapChunkDescriptor& mmap_descriptor) {
+SelectChunkVectorPtr(storage::MmapChunkKey& mmap_descriptor) {
     if constexpr (!IsVariableType<Type>) {
-        if (mmap_descriptor != nullptr) {
+        if (mmap_descriptor.has_value()) {
             return std::make_unique<
                 ThreadSafeChunkVector<Type, FixedLengthChunk<Type>, true>>(
                 mmap_descriptor);
@@ -181,7 +181,7 @@ SelectChunkVectorPtr(storage::MmapChunkDescriptor& mmap_descriptor) {
             return std::make_unique<ThreadSafeChunkVector<Type>>();
         }
     } else if constexpr (IsVariableTypeSupportInChunk<Type>) {
-        if (mmap_descriptor != nullptr) {
+        if (mmap_descriptor.has_value()) {
             return std::make_unique<
                 ThreadSafeChunkVector<Type, VariableLengthChunk<Type>, true>>(
                 mmap_descriptor);

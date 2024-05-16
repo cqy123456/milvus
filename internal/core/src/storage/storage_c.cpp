@@ -102,7 +102,7 @@ InitGrowingMmapChunkManagerSingleton(const char* c_dir_path,
                                      uint64_t disk_limit,
                                      uint64_t file_size) {
     try {
-        milvus::storage::MmapChunkManager::InitMmapChunkManager(
+        milvus::storage::MmapChunkManager::get_instance().Init(
             c_dir_path, disk_limit, file_size);
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {
@@ -113,9 +113,9 @@ InitGrowingMmapChunkManagerSingleton(const char* c_dir_path,
 CStatus
 GetGrowingMmapUsedSize(int64_t* size) {
     try {
-        auto growing_mmap_chunk_manager =
-            milvus::storage::MmapChunkManager::GetMmapChunkManager();
-        (*size) = growing_mmap_chunk_manager->GetDiskUsage();
+        auto& growing_mmap_chunk_manager =
+            milvus::storage::MmapChunkManager::get_instance();
+        (*size) = growing_mmap_chunk_manager.GetDiskUsage();
         return milvus::SuccessCStatus();
     } catch (std::exception(&e)) {
         return milvus::FailureCStatus(&e);

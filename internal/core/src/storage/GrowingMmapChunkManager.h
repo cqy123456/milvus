@@ -25,6 +25,8 @@
 #include <shared_mutex>
 #include "common/EasyAssert.h"
 #include "log/Log.h"
+#include <optional>
+#include "storage/LocalChunkManagerSingleton.h"
 namespace milvus::storage {
 /**
  * @brief MmapBlock is a basic unit of MmapChunkManager. It handle all memory mmaping in one tmp file.
@@ -151,9 +153,12 @@ class MmapBlocksHandler {
  */
 class MmapChunkManager {
  public:
-    MmapChunkManager(const std::string prefix,
-                     const uint64_t max_limit,
-                     const uint64_t file_size);
+    MmapChunkManager(const MmapChunkManager&)=delete;
+    MmapChunkManager& operator=(const MmapChunkManager&)=delete;
+    static MmapChunkManager& get_instance(){
+        static MmapChunkManager instance;
+        return instance;
+    }
     ~MmapChunkManager();
     void
     Register(const uint64_t key);
@@ -166,60 +171,45 @@ class MmapChunkManager {
     uint64_t
     GetDiskAllocSize() {
         std::shared_lock<std::shared_mutex> lck(mtx_);
-        return blocks_handler_.Capacity();
+        return blocks_handler_->Capacity();
     }
     uint64_t
     GetDiskUsage() {
         std::shared_lock<std::shared_mutex> lck(mtx_);
-        return blocks_handler_.Size();
+        return blocks_handler_->Size();
     }
-    static void
-    InitMmapChunkManager(std::string root_path,
+    void
+    Init(std::string root_path,
                          const uint64_t disk_limit,
                          const uint64_t file_size) {
-        if (chunk_manager_ != nullptr) {
-            LOG_INFO("MappChunkManage has been setted");
-        } else {
-            chunk_manager_ = std::make_shared<MmapChunkManager>(
-                root_path, disk_limit, file_size);
-            LOG_INFO(
-                "Init MappChunkManage with: Path {}, MaxDiskSize {} MB, "
-                "FixedFileSize {} MB.",
-                root_path,
-                disk_limit / (1024 * 1024),
-                file_size / (1024 * 1024));
+        blocks_handler_= std::make_unique<MmapBlocksHandler>(disk_limit, file_size, root_path);
+        mmap_file_prefix_ = root_path;
+        auto cm =
+            storage::LocalChunkManagerSingleton::GetInstance().GetChunkManager();
+        AssertInfo(cm != nullptr,
+                "Fail to get LocalChunkManager, LocalChunkManagerPtr is null");
+        if (cm->Exist(root_path)) {
+            cm->RemoveDir(root_path);
         }
-    }
-    static std::shared_ptr<MmapChunkManager>
-    GetMmapChunkManager() {
-        if (chunk_manager_ == nullptr) {
-            LOG_WARN(
-                "Can't not get MmapChunkManager before calling "
-                "InitMmapChunkManager().");
-            return nullptr;
-        } else {
-            return chunk_manager_;
-        }
-    }
-    uint64_t
-    GetMmapChunkManagerUsedSize() {
-        auto mmap_manager = GetMmapChunkManager();
-        if (mmap_manager == nullptr) {
-            return 0;
-        } else {
-            return mmap_manager->GetDiskUsage();
-        }
+        cm->CreateDir(root_path);
+
+        LOG_INFO(
+            "Init MappChunkManage with: Path {}, MaxDiskSize {} MB, "
+            "FixedFileSize {} MB.",
+            root_path,
+            disk_limit / (1024 * 1024),
+            file_size / (1024 * 1024));
     }
 
  private:
+    MmapChunkManager(){}
     mutable std::shared_mutex mtx_;
     std::unordered_map<uint64_t, std::vector<MmapBlockPtr>> blocks_table_;
-    MmapBlocksHandler blocks_handler_;
+    std::unique_ptr<MmapBlocksHandler> blocks_handler_ = nullptr;
     std::string mmap_file_prefix_;
-    inline static std::shared_ptr<MmapChunkManager> chunk_manager_ = nullptr;
+   // static std::shared_ptr<MmapChunkManager> chunk_manager_;
 };
 using GrowingMmapChunkManagerPtr = std::shared_ptr<MmapChunkManager>;
-using MmapChunkDescriptor =
-    std::shared_ptr<std::pair<std::uint64_t, GrowingMmapChunkManagerPtr>>;
+using MmapChunkKey = std::optional<std::uint64_t>;
 
 }  // namespace milvus::storage
