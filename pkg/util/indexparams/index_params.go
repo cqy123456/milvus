@@ -186,9 +186,9 @@ func FillDiskIndexParams(params *paramtable.ComponentParam, indexParams map[stri
 		if err != nil {
 			return err
 		}
-		pqCodeBudgetGBRatio = fmt.Sprintf("%f", extraParams.PQCodeBudgetGBRatio)
+		pqCodeBudgetGBRatio = fmt.Sprintf("%f", extraParams.PQCodeBudgetGBRatio*2)
 		buildNumThreadsRatio = fmt.Sprintf("%f", extraParams.BuildNumThreadsRatio)
-		searchCacheBudgetGBRatio = fmt.Sprintf("%f", extraParams.SearchCacheBudgetGBRatio)
+		searchCacheBudgetGBRatio = fmt.Sprintf("%f", extraParams.SearchCacheBudgetGBRatio*2)
 	} else {
 		maxDegree = params.CommonCfg.MaxDegree.GetValue()
 		searchListSize = params.CommonCfg.SearchListSize.GetValue()
