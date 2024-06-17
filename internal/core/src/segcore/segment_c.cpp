@@ -89,35 +89,31 @@ Search(CTraceContext c_trace,
        CPlaceholderGroup c_placeholder_group,
        uint64_t timestamp,
        CSearchResult* result) {
-    try {
-        auto segment = (milvus::segcore::SegmentInterface*)c_segment;
-        auto plan = (milvus::query::Plan*)c_plan;
-        auto phg_ptr = reinterpret_cast<const milvus::query::PlaceholderGroup*>(
-            c_placeholder_group);
+    auto segment = (milvus::segcore::SegmentInterface*)c_segment;
+    auto plan = (milvus::query::Plan*)c_plan;
+    auto phg_ptr = reinterpret_cast<const milvus::query::PlaceholderGroup*>(
+        c_placeholder_group);
 
-        // save trace context into search_info
-        auto& trace_ctx = plan->plan_node_->search_info_.trace_ctx_;
-        trace_ctx.traceID = c_trace.traceID;
-        trace_ctx.spanID = c_trace.spanID;
-        trace_ctx.traceFlags = c_trace.traceFlags;
+    // save trace context into search_info
+    auto& trace_ctx = plan->plan_node_->search_info_.trace_ctx_;
+    trace_ctx.traceID = c_trace.traceID;
+    trace_ctx.spanID = c_trace.spanID;
+    trace_ctx.traceFlags = c_trace.traceFlags;
 
-        auto span = milvus::tracer::StartSpan("SegCoreSearch", &trace_ctx);
-        milvus::tracer::SetRootSpan(span);
+    auto span = milvus::tracer::StartSpan("SegCoreSearch", &trace_ctx);
+    milvus::tracer::SetRootSpan(span);
 
-        auto search_result = segment->Search(plan, phg_ptr, timestamp);
-        if (!milvus::PositivelyRelated(
-                plan->plan_node_->search_info_.metric_type_)) {
-            for (auto& dis : search_result->distances_) {
-                dis *= -1;
-            }
+    auto search_result = segment->Search(plan, phg_ptr, timestamp);
+    if (!milvus::PositivelyRelated(
+            plan->plan_node_->search_info_.metric_type_)) {
+        for (auto& dis : search_result->distances_) {
+            dis *= -1;
         }
-        *result = search_result.release();
-        span->End();
-        milvus::tracer::CloseRootSpan();
-        return milvus::SuccessCStatus();
-    } catch (std::exception& e) {
-        return milvus::FailureCStatus(&e);
     }
+    *result = search_result.release();
+    span->End();
+    milvus::tracer::CloseRootSpan();
+    return milvus::SuccessCStatus();
 }
 
 void
