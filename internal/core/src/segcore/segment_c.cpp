@@ -475,9 +475,11 @@ WarmupChunkCache(CSegmentInterface c_segment, int64_t field_id) {
         auto segment =
             dynamic_cast<milvus::segcore::SegmentSealed*>(segment_interface);
         AssertInfo(segment != nullptr, "segment conversion failed");
+        std::cout <<"cqy: doing warmupchunk cache"<<std::endl;
         segment->WarmupChunkCache(milvus::FieldId(field_id));
         return milvus::SuccessCStatus();
     } catch (std::exception& e) {
+        std::cout <<"cqy: fail to warmupchunk cache"<<e.what()<<std::endl;
         return milvus::FailureCStatus(milvus::UnexpectedError, e.what());
     }
 }

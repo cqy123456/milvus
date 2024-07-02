@@ -23,11 +23,13 @@ namespace milvus::storage {
 std::shared_ptr<ColumnBase>
 ChunkCache::Read(const std::string& filepath,
                  const MmapChunkDescriptorPtr& descriptor) {
+    std::cout << "cqy:ChunkCache read " << filepath<<std::endl;
     // use rlock to get future
     {
         std::shared_lock lck(mutex_);
         auto it = columns_.find(filepath);
         if (it != columns_.end()) {
+            std::cout << "cqy:ChunkCache find 1"<<std::endl;
             lck.unlock();
             auto result = it->second.second.get();
             AssertInfo(result, "unexpected null column, file={}", filepath);
@@ -40,6 +42,7 @@ ChunkCache::Read(const std::string& filepath,
     // double check no-futurn
     auto it = columns_.find(filepath);
     if (it != columns_.end()) {
+        std::cout << "cqy:ChunkCache find 1"<<std::endl;
         lck.unlock();
         auto result = it->second.second.get();
         AssertInfo(result, "unexpected null column, file={}", filepath);
