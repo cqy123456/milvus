@@ -75,6 +75,7 @@ MmapBlock::Init() {
         file_size_);
     is_valid_ = true;
     allocated_size_.fetch_add(file_size_);
+    std::cout <<"cqy: init MmapBlock with file_size_" <<file_size_<<std::endl;
 }
 
 void

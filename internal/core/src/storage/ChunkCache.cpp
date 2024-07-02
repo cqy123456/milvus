@@ -53,8 +53,11 @@ ChunkCache::Read(const std::string& filepath,
 
     // release lock and perform download and decode
     // other thread request same path shall get the future.
-    auto field_data = DownloadAndDecodeRemoteFile(cm_.get(), filepath);
-    auto column = Mmap(field_data->GetFieldData(), descriptor);
+    std::shared_ptr<ColumnBase> column = nullptr;
+    {
+        auto field_data = DownloadAndDecodeRemoteFile(cm_.get(), filepath);
+        column = Mmap(field_data->GetFieldData(), descriptor);
+    }
 
     // set promise value to notify the future
     lck.lock();
@@ -125,6 +128,7 @@ ChunkCache::Mmap(const FieldDataPtr& field_data,
         column = std::make_shared<Column>(
             data_size, dim, data_type, mcm_, descriptor);
     }
+    std::cout << "chunk cache mmap with size: " << data_size<<std::endl;
     column->AppendBatch(field_data);
     return column;
 }
