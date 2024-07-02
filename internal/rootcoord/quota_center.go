@@ -1096,8 +1096,9 @@ func (q *QuotaCenter) getMemoryFactor() map[int64]float64 {
 		if memoryWaterLevel <= queryNodeMemoryLowWaterLevel {
 			continue
 		}
+		log.Info("QuotaCenter:", zap.Uint64("metric.Hms.MemoryUsage", metric.Hms.MemoryUsage), zap.Uint64("metric.Hms.Memory", metric.Hms.Memory))
 		if memoryWaterLevel >= queryNodeMemoryHighWaterLevel {
-			log.RatedWarn(10, "QuotaCenter: QueryNode memory to high water level",
+			log.Info("QuotaCenter: QueryNode memory to high water level",
 				zap.String("Node", fmt.Sprintf("%s-%d", typeutil.QueryNodeRole, nodeID)),
 				zap.Int64s("collections", metric.Effect.CollectionIDs),
 				zap.Uint64("UsedMem", metric.Hms.MemoryUsage),
