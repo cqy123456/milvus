@@ -47,7 +47,7 @@ func GetUsedMemoryCount() uint64 {
 		log.Warn("failed to get memory info", zap.Error(err))
 		return 0
 	}
-
+	log.Info("cqy:GetUsedMemoryCount ", zap.Any("memInfo.RSS", memInfo.RSS), zap.Any("memInfo.Shared", memInfo.Shared))
 	// sub the shared memory to filter out the file-backed map memory usage
 	return memInfo.RSS - memInfo.Shared
 }
