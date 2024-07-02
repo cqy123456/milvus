@@ -128,7 +128,7 @@ ChunkCache::Mmap(const FieldDataPtr& field_data,
         column = std::make_shared<Column>(
             data_size, dim, data_type, mcm_, descriptor);
     }
-    std::cout << "chunk cache mmap with size: " << data_size<<std::endl;
+    std::cout << "cqy:chunk cache mmap with size: " << data_size<<std::endl;
     column->AppendBatch(field_data);
     return column;
 }
