@@ -28,6 +28,7 @@ struct FixedLengthChunk {
                               storage::MmapChunkDescriptorPtr descriptor)
         : mmap_descriptor_(descriptor), size_(size) {
         auto mcm = storage::MmapManager::GetInstance().GetMmapChunkManager();
+        LOG_INFO("cqy: FixedLengthChunk allocate {}", sizeof(Type) * size);
         data_ = (Type*)(mcm->Allocate(mmap_descriptor_, sizeof(Type) * size));
         AssertInfo(data_ != nullptr,
                    "failed to create a mmapchunk: {}, map_size");
@@ -118,6 +119,7 @@ VariableLengthChunk<std::string>::set(const std::string* src,
     for (auto i = 0; i < length; i++) {
         total_size += src[i].size() + padding_size;
     }
+    LOG_INFO("cqy: VariableLengthChunk  string allocate {}", total_size);
     auto buf = (char*)mcm->Allocate(mmap_descriptor_, total_size);
     AssertInfo(buf != nullptr, "failed to allocate memory from mmap_manager.");
     for (auto i = 0, offset = 0; i < length; i++) {
@@ -152,6 +154,7 @@ VariableLengthChunk<Json>::set(const Json* src,
     for (auto i = 0; i < length; i++) {
         total_size += src[i].size() + padding_size;
     }
+    LOG_INFO("cqy: VariableLengthChunk json allocate {}", total_size);
     auto buf = (char*)mcm->Allocate(mmap_descriptor_, total_size);
     AssertInfo(buf != nullptr, "failed to allocate memory from mmap_manager.");
     for (auto i = 0, offset = 0; i < length; i++) {
@@ -185,6 +188,7 @@ VariableLengthChunk<Array>::set(const Array* src,
     for (auto i = 0; i < length; i++) {
         total_size += src[i].byte_size() + padding_size;
     }
+    LOG_INFO("cqy: VariableLengthChunk array allocate {}", total_size);
     auto buf = (char*)mcm->Allocate(mmap_descriptor_, total_size);
     AssertInfo(buf != nullptr, "failed to allocate memory from mmap_manager.");
     for (auto i = 0, offset = 0; i < length; i++) {

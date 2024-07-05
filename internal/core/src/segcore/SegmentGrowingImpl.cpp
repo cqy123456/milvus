@@ -169,6 +169,7 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
 
 void
 SegmentGrowingImpl::LoadFieldData(const LoadFieldDataInfo& infos) {
+    LOG_INFO("cqy::using LoadFieldData function");
     // schema don't include system field
     AssertInfo(infos.field_infos.size() == schema_->size(),
                "lost some field data when load for growing segment");
@@ -225,8 +226,11 @@ SegmentGrowingImpl::LoadFieldData(const LoadFieldDataInfo& infos) {
         if (field_id == RowFieldID) {
             continue;
         }
-
         if (!indexing_record_.SyncDataWithIndex(field_id)) {
+            LOG_INFO("cqy: field_data {}", field_data.size());
+            for (auto field : field_data) {
+                LOG_INFO("cqy: size {}", field->Size());
+            }
             insert_record_.get_field_data_base(field_id)->set_data_raw(
                 reserved_offset, field_data);
         }
