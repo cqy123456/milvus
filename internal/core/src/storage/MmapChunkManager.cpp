@@ -75,6 +75,7 @@ MmapBlock::Init() {
         file_size_);
     is_valid_ = true;
     allocated_size_.fetch_add(file_size_);
+    LOG_INFO("cqy: fetch_add, current allocate size {}", allocated_size_.load());
 }
 
 void
@@ -96,6 +97,7 @@ MmapBlock::Close() {
         }
     }
     allocated_size_.fetch_sub(file_size_);
+    LOG_INFO("cqy: fetch_sub, current allocate size {}", allocated_size_.load());
     milvus::storage::internal_mmap_in_used_space_bytes_file.Decrement(
         file_size_);
     is_valid_ = false;
