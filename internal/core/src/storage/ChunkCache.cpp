@@ -69,6 +69,38 @@ ChunkCache::Read(const std::string& filepath,
 }
 
 void
+ChunkCache::DontNeedFree(const std::string& filepath) {
+    std::shared_lock lck(mutex_);
+    auto police = ReadAheadPolicy_Map["dontneed"];
+    auto it = columns_.find(filepath);
+    if (it == columns_.end()) {
+        LOG_INFO("cqy: fail to get mmap colums in ChunkCache::Madvise");
+        return;
+    }
+
+    auto column = it->second.second.get();
+    auto ok = madvise(
+        reinterpret_cast<void*>(const_cast<char*>(column->MmappedData())),
+        column->ByteSize(),
+        police);
+    if (ok != 0) {
+        LOG_WARN(
+            "cqy:failed to madvise to the data file {}, addr {}, size {}, with {} err: {} ",
+            filepath,
+            column->MmappedData(),
+            column->ByteSize(),
+            police,
+            strerror(errno));
+    } else {
+        LOG_INFO(
+            "cqy: success to set filepath {} in police {}",
+            filepath,
+            police
+        );
+    }
+}
+
+void
 ChunkCache::Remove(const std::string& filepath) {
     std::unique_lock lck(mutex_);
     columns_.erase(filepath);

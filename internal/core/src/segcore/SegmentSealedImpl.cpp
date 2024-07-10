@@ -154,6 +154,7 @@ SegmentSealedImpl::WarmupChunkCache(const FieldId field_id) {
     auto cc = storage::MmapManager::GetInstance().GetChunkCache();
     for (const auto& data_path : field_info.insert_files) {
         auto column = cc->Read(data_path, mmap_descriptor_);
+        cc->DontNeedFree(data_path);
     }
 }
 

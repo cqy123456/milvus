@@ -53,6 +53,9 @@ class ChunkCache {
     void
     Prefetch(const std::string& filepath);
 
+    void
+    DontNeedFree(const std::string& filepath);
+
  private:
     std::shared_ptr<ColumnBase>
     Mmap(const FieldDataPtr& field_data,
