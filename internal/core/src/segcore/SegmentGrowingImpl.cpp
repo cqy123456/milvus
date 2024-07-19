@@ -105,6 +105,7 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
                    fmt::format("can't find field {}", field_id.get()));
         auto data_offset = field_id_to_offset[field_id];
         if (!indexing_record_.SyncDataWithIndex(field_id)) {
+            std::cout <<"cqy: SegmentGrowingImpl::Insert reserved_offset, num_rows:"<<reserved_offset<<" "<<num_rows<<std::endl; 
             insert_record_.get_field_data_base(field_id)->set_data_raw(
                 reserved_offset,
                 num_rows,

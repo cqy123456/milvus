@@ -184,6 +184,7 @@ class ConcurrentVectorImpl : public VectorBase {
             // only for testing
             PanicInfo(NotImplemented, "unimplemented");
         } else {
+            std::cout <<"get_span_base : "<< chunk_id<<std::endl;
             auto chunk_data = chunks_ptr_->get_chunk_data(chunk_id);
             auto chunk_size = chunks_ptr_->get_chunk_size(chunk_id);
             static_assert(
@@ -228,9 +229,11 @@ class ConcurrentVectorImpl : public VectorBase {
         if (element_count == 0) {
             return;
         }
+        std::cout <<"cqy : set_data_raw->emplace_to_at_least"<< upper_div(element_offset + element_count, size_per_chunk_)<<" "<<(elements_per_row_ * size_per_chunk_)<<std::endl;
         chunks_ptr_->emplace_to_at_least(
             upper_div(element_offset + element_count, size_per_chunk_),
             elements_per_row_ * size_per_chunk_);
+        std::cout << "cqy: set_data_raw(element_offset, element_count):"<<element_offset<<" "<<element_count<<std::endl;
         set_data(
             element_offset, static_cast<const Type*>(source), element_count);
     }
@@ -264,6 +267,7 @@ class ConcurrentVectorImpl : public VectorBase {
                 elements_per_row_));
         auto chunk_id = element_index / size_per_chunk_;
         auto chunk_offset = element_index % size_per_chunk_;
+        std::cout << " operator[]"<< chunk_id<<std::endl;
         auto data =
             static_cast<const Type*>(chunks_ptr_->get_chunk_data(chunk_id));
         return data[chunk_offset];

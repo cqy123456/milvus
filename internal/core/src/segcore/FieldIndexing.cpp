@@ -64,7 +64,7 @@ VectorFieldIndexing::BuildIndexRange(int64_t ack_beg,
     AssertInfo(ack_end <= num_chunk, "ack_end is bigger than num_chunk");
     auto conf = get_build_params();
     data_.grow_to_at_least(ack_end);
-    for (int chunk_id = ack_beg; chunk_id < ack_end; chunk_id++) {
+    for (int64_t chunk_id = ack_beg; chunk_id < ack_end; chunk_id++) {
         const auto& chunk_data = source->get_chunk_data(chunk_id);
         auto indexing = std::make_unique<index::VectorMemIndex<float>>(
             knowhere::IndexEnum::INDEX_FAISS_IVFFLAT,

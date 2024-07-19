@@ -169,6 +169,7 @@ class ThreadSafeChunkVector : public ChunkVectorBase<Type> {
     SpanBase
     get_span(int64_t chunk_id) override {
         std::shared_lock<std::shared_mutex> lck(mutex_);
+        std::cout << "cqy: get_span chunk_id"<<chunk_id<<std::endl;
         if constexpr (IsMmap && std::is_same_v<std::string, Type>) {
             return SpanBase(get_chunk_data(chunk_id),
                             get_chunk_size(chunk_id),
