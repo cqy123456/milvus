@@ -71,6 +71,9 @@ func NewL0Segment(collection *Collection,
 	return segment, nil
 }
 
+func (s *L0Segment) IndexedRowNum() int64 {
+	return 0
+}
 func (s *L0Segment) PinIfNotReleased() error {
 	return nil
 }

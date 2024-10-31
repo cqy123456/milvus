@@ -92,6 +92,9 @@ class SegmentSealedImpl : public SegmentSealed {
     void
     RemoveFieldFile(const FieldId field_id);
 
+    int64_t
+    get_indexed_row_count() const override;
+
  public:
     size_t
     GetMemoryUsageInBytes() const override {
@@ -298,6 +301,8 @@ class SegmentSealedImpl : public SegmentSealed {
     generate_interim_index(const FieldId field_id);
 
  private:
+    std::atomic<bool> vec_field_has_index = false;
+    std::atomic<int64_t> indexed_row_count_ = 0;
     // mmap descriptor, used in chunk cache
     storage::MmapChunkDescriptorPtr mmap_descriptor_ = nullptr;
     // segment loading state
