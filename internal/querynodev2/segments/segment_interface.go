@@ -64,6 +64,7 @@ type Segment interface {
 	InsertCount() int64
 	// RowNum returns the number of rows, it's slow, so DO NOT call it in a loop
 	RowNum() int64
+	IndexedRowNum() int64
 	MemSize() int64
 	// ResourceUsageEstimate returns the estimated resource usage of the segment
 	ResourceUsageEstimate() ResourceUsage

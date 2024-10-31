@@ -131,6 +131,20 @@ var (
 			segmentLevelLabelName,
 		})
 
+	QueryNodeNumVecIndexSegments = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: milvusNamespace,
+			Subsystem: typeutil.QueryNodeRole,
+			Name:      "vec_indexed_segment_num",
+			Help:      "number of segments (has vector index and loaded), clustered by its collection, partition, state and # of indexed fields",
+		}, []string{
+			nodeIDLabelName,
+			collectionIDLabelName,
+			partitionIDLabelName,
+			segmentStateLabelName,
+			indexCountLabelName,
+		})
+
 	QueryNodeNumDmlChannels = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: milvusNamespace,
@@ -443,6 +457,20 @@ var (
 			collectionIDLabelName,
 			partitionIDLabelName,
 			segmentStateLabelName,
+		})
+
+	QueryNodeIndexedNumEntities = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: milvusNamespace,
+			Subsystem: typeutil.QueryNodeRole,
+			Name:      "indexed_vec_entity_num",
+			Help:      "number of vector entities which has been created index, clustered by collection, partition and state, not useful for multi fields.",
+		}, []string{
+			databaseLabelName,
+			collectionName,
+			nodeIDLabelName,
+			collectionIDLabelName,
+			partitionIDLabelName,
 		})
 
 	QueryNodeEntitiesSize = prometheus.NewGaugeVec(
@@ -796,6 +824,7 @@ func RegisterQueryNode(registry *prometheus.Registry) {
 	registry.MustRegister(QueryNodeNumCollections)
 	registry.MustRegister(QueryNodeNumPartitions)
 	registry.MustRegister(QueryNodeNumSegments)
+	registry.MustRegister(QueryNodeNumVecIndexSegments)
 	registry.MustRegister(QueryNodeNumDmlChannels)
 	registry.MustRegister(QueryNodeNumDeltaChannels)
 	registry.MustRegister(QueryNodeSQCount)
@@ -819,6 +848,7 @@ func RegisterQueryNode(registry *prometheus.Registry) {
 	registry.MustRegister(QueryNodeSearchTopK)
 	registry.MustRegister(QueryNodeNumFlowGraphs)
 	registry.MustRegister(QueryNodeNumEntities)
+	registry.MustRegister(QueryNodeIndexedNumEntities)
 	registry.MustRegister(QueryNodeEntitiesSize)
 	registry.MustRegister(QueryNodeLevelZeroSize)
 	registry.MustRegister(QueryNodeConsumeCounter)
@@ -879,6 +909,12 @@ func CleanupQueryNodeCollectionMetrics(nodeID int64, collectionID int64) {
 				collectionIDLabelName: collectionIDLabel,
 			})
 	QueryNodeNumEntities.
+		DeletePartialMatch(
+			prometheus.Labels{
+				nodeIDLabelName:       nodeIDLabel,
+				collectionIDLabelName: collectionIDLabel,
+			})
+	QueryNodeIndexedNumEntities.
 		DeletePartialMatch(
 			prometheus.Labels{
 				nodeIDLabelName:       nodeIDLabel,

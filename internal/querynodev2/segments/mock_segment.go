@@ -1290,6 +1290,10 @@ func (_m *MockSegment) RowNum() int64 {
 	return r0
 }
 
+func (_m *MockSegment) IndexedRowNum() int64 {
+	return 0
+}
+
 // MockSegment_RowNum_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RowNum'
 type MockSegment_RowNum_Call struct {
 	*mock.Call

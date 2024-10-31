@@ -93,6 +93,9 @@ class SegmentInterface {
     get_real_count() const = 0;
 
     virtual int64_t
+    get_indexed_row_count() const = 0;
+
+    virtual int64_t
     get_field_avg_size(FieldId field_id) const = 0;
 
     virtual void

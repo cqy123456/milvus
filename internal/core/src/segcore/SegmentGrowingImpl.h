@@ -75,6 +75,11 @@ class SegmentGrowingImpl : public SegmentGrowing {
         return id_;
     }
 
+    int64_t
+    get_indexed_row_count() const override {
+        return 0;
+    }
+
  public:
     const InsertRecord<>&
     get_insert_record() const {

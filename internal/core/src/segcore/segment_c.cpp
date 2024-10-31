@@ -241,6 +241,13 @@ GetRealCount(CSegmentInterface c_segment) {
     return segment->get_real_count();
 }
 
+int64_t
+GetIndexedCount(CSegmentInterface c_segment) {
+    auto segment =
+        reinterpret_cast<milvus::segcore::SegmentInterface*>(c_segment);
+    return segment->get_indexed_row_count();
+}
+
 bool
 HasRawData(CSegmentInterface c_segment, int64_t field_id) {
     auto segment =

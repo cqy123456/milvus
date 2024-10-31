@@ -123,9 +123,15 @@ SegmentSealedImpl::LoadVecIndex(const LoadIndexInfo& info) {
         metric_type,
         std::move(const_cast<LoadIndexInfo&>(info).index));
     set_bit(index_ready_bitset_, field_id, true);
-    LOG_INFO("Has load vec index done, fieldID:{}. segmentID:{}, ",
+    auto field_indexing = vector_indexings_.get_field_indexing(field_id);
+    auto vec_index =
+        dynamic_cast<index::VectorIndex*>(field_indexing->indexing_.get());
+    indexed_row_count_.store(vec_index->Count());
+    LOG_INFO("cqy: Has load vec index done, fieldID:{}. segmentID:{}, row_count:{}, index_row_count:{}",
              info.field_id,
-             id_);
+             id_, 
+             row_count, 
+             vec_index->Count());
 }
 
 void
@@ -798,6 +804,11 @@ SegmentSealedImpl::get_deleted_count() const {
 const Schema&
 SegmentSealedImpl::get_schema() const {
     return *schema_;
+}
+
+int64_t
+SegmentSealedImpl::get_indexed_row_count() const {
+    return indexed_row_count_.load();
 }
 
 void
@@ -1519,7 +1530,6 @@ SegmentSealedImpl::HasIndex(FieldId field_id) const {
     return get_bit(index_ready_bitset_, field_id) |
            get_bit(binlog_index_bitset_, field_id);
 }
-
 bool
 SegmentSealedImpl::HasFieldData(FieldId field_id) const {
     std::shared_lock lck(mutex_);
