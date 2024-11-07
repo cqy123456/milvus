@@ -64,6 +64,8 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 
 	metrics.QueryNodeNumEntities.Reset()
 	metrics.QueryNodeEntitiesSize.Reset()
+	metrics.QueryNodeIndexedNumEntities.Reset()
+	metrics.QueryNodeNumVecIndexSegments.Reset()
 
 	var totalGrowingSize int64
 	growingSegments := node.manager.Segment.GetBy(segments.WithType(segments.SegmentTypeGrowing))
@@ -114,8 +116,17 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 		return seg.Partition()
 	})
 	for _, segs := range sealedGroupByPartition {
+		vecIndexedSegmentNum := 0
+		for _, seg := range segs {
+			if seg.IndexedRowNum() != 0 {
+				vecIndexedSegmentNum = vecIndexedSegmentNum + 1
+			}
+		}
 		numEntities := lo.SumBy(segs, func(seg segments.Segment) int64 {
 			return seg.RowNum()
+		})
+		indexedNumEntities := lo.SumBy(segs, func(seg segments.Segment) int64 {
+			return seg.IndexedRowNum()
 		})
 		segment := segs[0]
 		metrics.QueryNodeNumEntities.WithLabelValues(
@@ -126,6 +137,20 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 			fmt.Sprint(segment.Partition()),
 			segments.SegmentTypeSealed.String(),
 		).Set(float64(numEntities))
+		metrics.QueryNodeIndexedNumEntities.WithLabelValues(
+			segment.DatabaseName(),
+			collections[segment.Collection()],
+			nodeID,
+			fmt.Sprint(segment.Collection()),
+			fmt.Sprint(segment.Partition()),
+		).Set(float64(indexedNumEntities))
+		metrics.QueryNodeNumVecIndexSegments.WithLabelValues(
+			fmt.Sprint(paramtable.GetNodeID()),
+			fmt.Sprint(segment.Collection()),
+			fmt.Sprint(segment.Partition()),
+			segment.Type().String(),
+			fmt.Sprint(len(segment.Indexes())),
+		).Set(float64(vecIndexedSegmentNum))
 	}
 
 	deleteBufferNum := make(map[int64]int64)

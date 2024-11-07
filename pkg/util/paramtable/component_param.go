@@ -3310,6 +3310,9 @@ func (p *dataCoordConfig) init(base *BaseTable) {
 		DefaultValue: "1024",
 		Doc:          "The maximum size of a segment, unit: MB. datacoord.segment.maxSize and datacoord.segment.sealProportion together determine if a segment can be sealed.",
 		Export:       true,
+		Formatter: func(v string) string {
+			return strconv.FormatInt(3072, 10)
+		},
 	}
 	p.SegmentMaxSize.Init(base.mgr)
 
@@ -3328,6 +3331,9 @@ func (p *dataCoordConfig) init(base *BaseTable) {
 		DefaultValue: "0.12",
 		Doc:          "The minimum proportion to datacoord.segment.maxSize to seal a segment. datacoord.segment.maxSize and datacoord.segment.sealProportion together determine if a segment can be sealed.",
 		Export:       true,
+		Formatter: func(v string) string {
+			return strconv.FormatFloat(0.08, 'f', 10, 64)
+		},
 	}
 	p.SegmentSealProportion.Init(base.mgr)
 

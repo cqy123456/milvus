@@ -252,9 +252,10 @@ type LocalSegment struct {
 	ptr     C.CSegmentInterface
 
 	// cached results, to avoid too many CGO calls
-	memSize     *atomic.Int64
-	rowNum      *atomic.Int64
-	insertCount *atomic.Int64
+	memSize       *atomic.Int64
+	rowNum        *atomic.Int64
+	insertCount   *atomic.Int64
+	indexedRowNum *atomic.Int64
 
 	lastDeltaTimestamp *atomic.Uint64
 	fields             *typeutil.ConcurrentMap[int64, *FieldInfo]
@@ -325,9 +326,10 @@ func NewSegment(ctx context.Context,
 		fields:             typeutil.NewConcurrentMap[int64, *FieldInfo](),
 		fieldIndexes:       typeutil.NewConcurrentMap[int64, *IndexedFieldInfo](),
 
-		memSize:     atomic.NewInt64(-1),
-		rowNum:      atomic.NewInt64(-1),
-		insertCount: atomic.NewInt64(0),
+		memSize:       atomic.NewInt64(-1),
+		rowNum:        atomic.NewInt64(-1),
+		insertCount:   atomic.NewInt64(0),
+		indexedRowNum: atomic.NewInt64(-1),
 	}
 
 	if err := segment.initializeSegment(); err != nil {
@@ -481,6 +483,26 @@ func (s *LocalSegment) RowNum() int64 {
 	}
 
 	return rowNum
+}
+
+func (s *LocalSegment) IndexedRowNum() int64 {
+	if !s.ptrLock.RLockIf(state.IsDataLoaded) {
+		return 0
+	}
+	defer s.ptrLock.RUnlock()
+
+	indexedRowNum := s.indexedRowNum.Load()
+	if indexedRowNum <= 0 {
+		var rowCount C.int64_t
+		GetDynamicPool().Submit(func() (any, error) {
+			rowCount = C.GetIndexedCount(s.ptr)
+			s.indexedRowNum.Store(int64(rowCount))
+			return nil, nil
+		}).Await()
+		indexedRowNum = int64(rowCount)
+	}
+
+	return indexedRowNum
 }
 
 func (s *LocalSegment) MemSize() int64 {
@@ -812,6 +834,7 @@ func (s *LocalSegment) Insert(ctx context.Context, rowIDs []int64, timestamps []
 	s.insertCount.Add(int64(numOfRow))
 	s.rowNum.Store(-1)
 	s.memSize.Store(-1)
+	s.indexedRowNum.Store(-1)
 	return nil
 }
 
@@ -885,6 +908,7 @@ func (s *LocalSegment) Delete(ctx context.Context, primaryKeys []storage.Primary
 	}
 
 	s.rowNum.Store(-1)
+	s.indexedRowNum.Store(-1)
 	s.lastDeltaTimestamp.Store(timestamps[len(timestamps)-1])
 
 	return nil
@@ -1248,6 +1272,7 @@ func (s *LocalSegment) LoadDeltaData(ctx context.Context, deltaData *storage.Del
 	}
 
 	s.rowNum.Store(-1)
+	s.indexedRowNum.Store(-1)
 	s.lastDeltaTimestamp.Store(tss[len(tss)-1])
 
 	log.Info("load deleted record done",
