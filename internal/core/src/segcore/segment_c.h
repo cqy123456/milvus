@@ -81,6 +81,9 @@ GetDeletedCount(CSegmentInterface c_segment);
 int64_t
 GetRealCount(CSegmentInterface c_segment);
 
+int64_t
+GetIndexedCount(CSegmentInterface c_segment);
+
 bool
 HasRawData(CSegmentInterface c_segment, int64_t field_id);
 
