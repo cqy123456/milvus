@@ -78,8 +78,6 @@ struct VectorIterator {
             heap_.pop();
             if (iterators_[top->GetIteratorIdx()]->HasNext()) {
                 auto origin_pair = iterators_[top->GetIteratorIdx()]->Next();
-                origin_pair.first = convert_to_segment_offset(
-                    origin_pair.first, top->GetIteratorIdx());
                 auto off_dis_pair = std::make_shared<OffsetDisPair>(
                     origin_pair, top->GetIteratorIdx());
                 heap_.push(off_dis_pair);
@@ -107,8 +105,6 @@ struct VectorIterator {
         for (auto& iter : iterators_) {
             if (iter->HasNext()) {
                 auto origin_pair = iter->Next();
-                origin_pair.first =
-                    convert_to_segment_offset(origin_pair.first, idx);
                 auto off_dis_pair =
                     std::make_shared<OffsetDisPair>(origin_pair, idx++);
                 heap_.push(off_dis_pair);
