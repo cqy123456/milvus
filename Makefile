@@ -27,7 +27,7 @@ ifdef disk_index
 	use_disk_index = ${disk_index}
 endif
 
-use_asan = OFF
+use_asan = ON
 ifeq ($(USE_ASAN), ON)
 	use_asan =${USE_ASAN}
 	CGO_LDFLAGS := $(shell go env CGO_LDFLAGS) -fsanitize=address -fno-omit-frame-pointer
