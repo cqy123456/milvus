@@ -26,13 +26,18 @@ use_disk_index = OFF
 ifdef disk_index
 	use_disk_index = ${disk_index}
 endif
+ARCH := $(shell uname -m)
 
 use_asan = ON
-ifeq ($(USE_ASAN), ON)
-	use_asan =${USE_ASAN}
-	CGO_LDFLAGS := $(shell go env CGO_LDFLAGS) -fsanitize=address -fno-omit-frame-pointer
-	CGO_CFLAGS := $(shell go env CGO_CFLAGS) -fsanitize=address -fno-omit-frame-pointer
-	MILVUS_GO_BUILD_TAGS := $(MILVUS_GO_BUILD_TAGS),use_asan
+ifeq ($(ARCH),arm)
+    use_asan = OFF 
+else
+	ifeq ($(USE_ASAN), ON)
+		use_asan =${USE_ASAN}
+		CGO_LDFLAGS := $(shell go env CGO_LDFLAGS) -fsanitize=address -fno-omit-frame-pointer
+		CGO_CFLAGS := $(shell go env CGO_CFLAGS) -fsanitize=address -fno-omit-frame-pointer
+		MILVUS_GO_BUILD_TAGS := $(MILVUS_GO_BUILD_TAGS),use_asan
+	endif
 endif
 
 use_dynamic_simd = ON
