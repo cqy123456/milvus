@@ -29,7 +29,7 @@ endif
 ARCH := $(shell uname -m)
 
 use_asan = ON
-ifeq ($(ARCH),arm)
+ifneq ($(ARCH),x86_64)
     use_asan = OFF 
 else
 	ifeq ($(USE_ASAN), ON)
