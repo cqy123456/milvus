@@ -137,7 +137,7 @@ func getQuotaMetrics(node *QueryNode) (*metricsinfo.QueryNodeQuotaMetrics, error
 		).Set(float64(numEntities))
 		metrics.QueryNodeIndexedNumEntities.WithLabelValues(
 			segment.DatabaseName(),
-			collections[segment.Collection()],
+			fmt.Sprint(segment.Collection()),
 			nodeID,
 			fmt.Sprint(segment.Collection()),
 			fmt.Sprint(segment.Partition()),
