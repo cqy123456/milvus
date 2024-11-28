@@ -51,8 +51,6 @@ VecIndexConfig::VecIndexConfig(const int64_t max_index_row_cout,
     search_params_[knowhere::indexparam::REORDER_K] = 450;
     build_params_[knowhere::indexparam::SSIZE] = std::to_string(
         std::max((int)(config_.get_chunk_rows() / config_.get_nlist()), 48));
-    search_params_[knowhere::indexparam::NPROBE] =
-        std::to_string(config_.get_nprobe());
     
 
     // note for sparse vector index: drop_ratio_build is not allowed for growing
