@@ -44,16 +44,21 @@ VecIndexConfig::VecIndexConfig(const int64_t max_index_row_cout,
     } else {
         index_type_ = support_index_types.at(segment_type);
     }
-    build_params_[knowhere::meta::METRIC_TYPE] = metric_type_;
-    build_params_[knowhere::indexparam::NLIST] = 128;
-    search_params_[knowhere::indexparam::NPROBE] = 36;
-    build_params_[knowhere::indexparam::WITH_RAW_DATA] = true;
-    search_params_[knowhere::indexparam::REORDER_K] = 450;
-    build_params_[knowhere::indexparam::SSIZE] = std::to_string(
-        std::max((int)(config_.get_chunk_rows() / config_.get_nlist()), 48));
-    search_params_[knowhere::indexparam::NPROBE] =
-        std::to_string(config_.get_nprobe());
-    
+    if (segment_type == SegmentType::Growing) {
+        build_params_[knowhere::meta::METRIC_TYPE] = metric_type_;
+        build_params_[knowhere::indexparam::NLIST] = 128;
+        search_params_[knowhere::indexparam::NPROBE] = 36;
+        build_params_[knowhere::indexparam::WITH_RAW_DATA] = true;
+        search_params_[knowhere::indexparam::REORDER_K] = 450;
+        build_params_[knowhere::indexparam::SSIZE] = std::to_string(
+            std::max((int)(config_.get_chunk_rows() / config_.get_nlist()), 48));
+    } else {
+        build_params_[knowhere::meta::METRIC_TYPE] = metric_type_;
+        build_params_[knowhere::indexparam::NLIST] = 128;
+        search_params_[knowhere::indexparam::NPROBE] = 16;
+        build_params_[knowhere::indexparam::SSIZE] = std::to_string(
+            std::max((int)(config_.get_chunk_rows() / config_.get_nlist()), 48));
+    }
 
     // note for sparse vector index: drop_ratio_build is not allowed for growing
     // segment index.

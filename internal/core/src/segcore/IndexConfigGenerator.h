@@ -32,10 +32,11 @@ enum class IndexConfigLevel {
 class VecIndexConfig {
     inline static const std::map<SegmentType, std::string> support_index_types =
         {{SegmentType::Growing, knowhere::IndexEnum::INDEX_FAISS_SCANN},
-         {SegmentType::Sealed, knowhere::IndexEnum::INDEX_FAISS_SCANN}};
+         {SegmentType::Sealed, knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC}};
 
     inline static const std::map<std::string, double> index_build_ratio = {
-        {knowhere::IndexEnum::INDEX_FAISS_SCANN, 0.1}};
+        {knowhere::IndexEnum::INDEX_FAISS_SCANN, 0.1},
+        {knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC, 0.1}};
 
     inline static const std::unordered_set<std::string> maintain_params = {
         "radius", "range_filter", "drop_ratio_search"};
