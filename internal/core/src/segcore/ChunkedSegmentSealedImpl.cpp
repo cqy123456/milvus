@@ -1757,7 +1757,7 @@ ChunkedSegmentSealedImpl::bulk_subscript(FieldId field_id,
             return get_raw_data(field_id, field_meta, seg_offsets, count);
         }
         return get_vector(field_id, seg_offsets, count);
-    }
+    } 
 }
 
 std::unique_ptr<DataArray>

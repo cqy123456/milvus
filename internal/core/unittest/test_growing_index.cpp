@@ -80,7 +80,7 @@ INSTANTIATE_TEST_SUITE_P(
                           knowhere::metric::IP,
                           knowhere::metric::L2),
         ::testing::Values(knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC,
-                          knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR)));
+ b55eb6af6f8377c58dfde1b95e5a2d27fd24d34e                         knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR)));
 
 INSTANTIATE_TEST_SUITE_P(
     SparseIndexTypeParameters,
