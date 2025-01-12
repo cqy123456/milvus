@@ -24,7 +24,9 @@ using namespace milvus;
 using namespace milvus::segcore;
 namespace pb = milvus::proto;
 
-using Param = std::tuple</*index type*/ std::string, knowhere::MetricType>;
+using Param = std::tuple</*index type*/ std::string,
+                         knowhere::MetricType,
+                         /*with raw data*/ bool>;
 
 class GrowingIndexTest : public ::testing::TestWithParam<Param> {
     void
@@ -32,6 +34,7 @@ class GrowingIndexTest : public ::testing::TestWithParam<Param> {
         auto param = GetParam();
         index_type = std::get<0>(param);
         metric_type = std::get<1>(param);
+        with_raw_data = std::get<2>(param);
         if (index_type == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT ||
             index_type == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC) {
             data_type = DataType::VECTOR_FLOAT;
@@ -49,6 +52,7 @@ class GrowingIndexTest : public ::testing::TestWithParam<Param> {
     std::string index_type;
     knowhere::MetricType metric_type;
     DataType data_type;
+    bool with_raw_data;
     bool is_sparse = false;
 };
 
@@ -60,7 +64,8 @@ INSTANTIATE_TEST_SUITE_P(
                           knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC),
         ::testing::Values(knowhere::metric::L2,
                           knowhere::metric::COSINE,
-                          knowhere::metric::IP)));
+                          knowhere::metric::IP),
+        ::testing::Values(true, false)));
 
 INSTANTIATE_TEST_SUITE_P(
     SparseIndexTypeParameters,
@@ -68,7 +73,8 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(
         ::testing::Values(knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX,
                           knowhere::IndexEnum::INDEX_SPARSE_WAND),
-        ::testing::Values(knowhere::metric::IP)));
+        ::testing::Values(knowhere::metric::IP),
+        ::testing::Values(true)));
 
 TEST_P(GrowingIndexTest, Correctness) {
     auto schema = std::make_shared<Schema>();
@@ -87,6 +93,11 @@ TEST_P(GrowingIndexTest, Correctness) {
     auto& config = SegcoreConfig::default_config();
     config.set_chunk_rows(1024);
     config.set_enable_interim_segment_index(true);
+    config.set_intermin_index_with_raw_data_flag(with_raw_data);
+    if (with_raw_data) {
+        auto nlist = config.get_nlist();
+        config.set_nprobe(int(0.3 * nlist));
+    }
     std::map<FieldId, FieldIndexMeta> filedMap = {{vec, fieldIndexMeta}};
     IndexMetaPtr metaPtr =
         std::make_shared<CollectionIndexMeta>(226985, std::move(filedMap));
@@ -126,6 +137,7 @@ TEST_P(GrowingIndexTest, Correctness) {
     range_query_info->set_topk(5);
     range_query_info->set_round_decimal(3);
     range_query_info->set_metric_type(metric_type);
+
     if (PositivelyRelated(metric_type)) {
         range_query_info->set_search_params(
             R"({"nprobe": 10, "radius": 500, "range_filter": 600})");
@@ -162,7 +174,7 @@ TEST_P(GrowingIndexTest, Correctness) {
         // get_build_threshold(). This value for sparse is 0, thus sparse index
         // will be built since the first chunk. Dense segment buffers the first
         // 2 chunks before building an index in this test case.
-        if (!is_sparse && i < 2) {
+        if ((!is_sparse && i < 2) || (!with_raw_data)) {
             EXPECT_EQ(field_data->num_chunk(),
                       upper_div(inserted, field_data->get_size_per_chunk()));
         } else {
@@ -239,6 +251,7 @@ TEST_P(GrowingIndexTest, GetVector) {
     auto& config = SegcoreConfig::default_config();
     config.set_chunk_rows(1024);
     config.set_enable_interim_segment_index(true);
+    config.set_intermin_index_with_raw_data_flag(with_raw_data);
     std::map<FieldId, FieldIndexMeta> filedMap = {{vec, fieldIndexMeta}};
     IndexMetaPtr metaPtr =
         std::make_shared<CollectionIndexMeta>(100000, std::move(filedMap));

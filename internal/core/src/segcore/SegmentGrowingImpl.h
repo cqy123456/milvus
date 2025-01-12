@@ -248,7 +248,8 @@ class SegmentGrowingImpl : public SegmentGrowing {
           index_meta_(indexMeta),
           insert_record_(
               *schema_, segcore_config.get_chunk_rows(), mmap_descriptor_),
-          indexing_record_(*schema_, index_meta_, segcore_config_),
+          indexing_record_(
+              *schema_, index_meta_, segcore_config_, &insert_record_),
           id_(segment_id),
           deleted_record_(&insert_record_, this) {
         if (mmap_descriptor_ != nullptr) {
@@ -314,8 +315,14 @@ class SegmentGrowingImpl : public SegmentGrowing {
         //growing index hold raw data when
         // 1. growing index enabled and it holds raw data
         // 2. growing index disabled then raw data held by chunk
+        // 3. growing index enabled and it not holds raw data, then raw data held by chunk
         if (indexing_record_.is_in(FieldId(field_id))) {
-            return indexing_record_.HasRawData(FieldId(field_id));
+            if (indexing_record_.HasRawData(FieldId(field_id))) {
+                return true;
+            } else {
+                return insert_record_.get_data_base(FieldId(field_id))
+                           ->num_chunk() > 0;
+            }
         }
         return true;
     }
@@ -392,13 +399,13 @@ class SegmentGrowingImpl : public SegmentGrowing {
     SchemaPtr schema_;
     IndexMetaPtr index_meta_;
 
-    // small indexes for every chunk
-    IndexingRecord indexing_record_;
-
     // inserted fields data and row_ids, timestamps
     InsertRecord<false> insert_record_;
 
     mutable std::shared_mutex chunk_mutex_;
+
+    // small indexes for every chunk
+    IndexingRecord indexing_record_;
 
     // deleted pks
     mutable DeletedRecord<false> deleted_record_;

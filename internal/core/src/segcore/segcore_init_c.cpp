@@ -34,7 +34,7 @@ SegcoreSetChunkRows(const int64_t value) {
 }
 
 extern "C" void
-SegcoreSetEnableTempSegmentIndex(const bool value) {
+SegcoreSetEnableInterminSegmentIndex(const bool value) {
     milvus::segcore::SegcoreConfig& config =
         milvus::segcore::SegcoreConfig::default_config();
     config.set_enable_interim_segment_index(value);
@@ -52,6 +52,27 @@ SegcoreSetNprobe(const int64_t value) {
     milvus::segcore::SegcoreConfig& config =
         milvus::segcore::SegcoreConfig::default_config();
     config.set_nprobe(value);
+}
+
+extern "C" void
+SegcoreSetInterminIndexWithRawData(const bool value) {
+    milvus::segcore::SegcoreConfig& config =
+        milvus::segcore::SegcoreConfig::default_config();
+    config.set_intermin_index_with_raw_data_flag(value);
+}
+
+extern "C" void
+SegcoreSetSubDim(const int64_t value) {
+    milvus::segcore::SegcoreConfig& config =
+        milvus::segcore::SegcoreConfig::default_config();
+    config.set_sub_dim(value);
+}
+
+extern "C" void
+SegcoreSetRefineRatio(const float value) {
+    milvus::segcore::SegcoreConfig& config =
+        milvus::segcore::SegcoreConfig::default_config();
+    config.set_refine_ratio(value);
 }
 
 extern "C" void

@@ -52,7 +52,8 @@ SegmentGrowingImpl::mask_with_delete(BitsetTypeView& bitset,
 void
 SegmentGrowingImpl::try_remove_chunks(FieldId fieldId) {
     //remove the chunk data to reduce memory consumption
-    if (indexing_record_.SyncDataWithIndex(fieldId)) {
+    if (indexing_record_.SyncDataWithIndex(fieldId) &&
+        indexing_record_.HasRawData(fieldId)) {
         VectorBase* vec_data_base =
             dynamic_cast<segcore::ConcurrentVector<FloatVector>*>(
                 insert_record_.get_data_base(fieldId));
@@ -102,7 +103,8 @@ SegmentGrowingImpl::Insert(int64_t reserved_offset,
         AssertInfo(field_id_to_offset.count(field_id),
                    fmt::format("can't find field {}", field_id.get()));
         auto data_offset = field_id_to_offset[field_id];
-        if (!indexing_record_.SyncDataWithIndex(field_id)) {
+        if (!indexing_record_.SyncDataWithIndex(field_id) ||
+            !indexing_record_.HasRawData(field_id)) {
             insert_record_.get_data_base(field_id)->set_data_raw(
                 reserved_offset,
                 num_rows,
@@ -242,7 +244,8 @@ SegmentGrowingImpl::LoadFieldData(const LoadFieldDataInfo& infos) {
             continue;
         }
 
-        if (!indexing_record_.SyncDataWithIndex(field_id)) {
+        if (!indexing_record_.SyncDataWithIndex(field_id) ||
+            !indexing_record_.HasRawData(field_id)) {
             insert_record_.get_data_base(field_id)->set_data_raw(
                 reserved_offset, field_data);
             if (insert_record_.is_valid_data_exist(field_id)) {
@@ -687,7 +690,8 @@ SegmentGrowingImpl::bulk_subscript_impl(FieldId field_id,
 
     // if index has finished building, grab from index without any
     // synchronization operations.
-    if (indexing_record_.SyncDataWithIndex(field_id)) {
+    if (indexing_record_.SyncDataWithIndex(field_id) &&
+        indexing_record_.HasRawData(field_id)) {
         indexing_record_.GetDataFromIndex(
             field_id, seg_offsets, count, element_sizeof, output_raw);
         return;
@@ -698,7 +702,8 @@ SegmentGrowingImpl::bulk_subscript_impl(FieldId field_id,
         // after the above check but before we grabbed the lock, we should grab
         // from index as the data in chunk may have been removed in
         // try_remove_chunks.
-        if (!indexing_record_.SyncDataWithIndex(field_id)) {
+        if (!indexing_record_.SyncDataWithIndex(field_id) ||
+            !indexing_record_.HasRawData(field_id)) {
             auto output_base = reinterpret_cast<char*>(output_raw);
             for (int i = 0; i < count; ++i) {
                 auto dst = output_base + i * element_sizeof;

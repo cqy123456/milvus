@@ -73,11 +73,44 @@ class SegcoreConfig {
         return enable_interim_segment_index_;
     }
 
+    void
+    set_sub_dim(int64_t sub_dim) {
+        sub_dim_ = sub_dim;
+    }
+
+    int64_t
+    get_sub_dim() const {
+        return sub_dim_;
+    }
+
+    void
+    set_refine_ratio(float refine_ratio) {
+        refine_ratio_ = refine_ratio;
+    }
+
+    int64_t
+    get_refine_ratio() const {
+        return refine_ratio_;
+    }
+
+    void
+    set_intermin_index_with_raw_data_flag(bool flag) {
+        with_raw_data_ = flag;
+    }
+
+    bool
+    get_intermin_index_with_raw_data_flag() const {
+        return with_raw_data_;
+    }
+
  private:
     inline static bool enable_interim_segment_index_ = false;
     inline static int64_t chunk_rows_ = 32 * 1024;
     inline static int64_t nlist_ = 100;
     inline static int64_t nprobe_ = 4;
+    inline static int64_t sub_dim_ = 2;
+    inline static float refine_ratio_ = 3.0;
+    inline static bool with_raw_data_ = true;
 };
 
 }  // namespace milvus::segcore

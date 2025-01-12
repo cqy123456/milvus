@@ -195,6 +195,26 @@ func InitMmapManager(params *paramtable.ComponentParam) error {
 	return HandleCStatus(&status, "InitMmapManager failed")
 }
 
+func InitInterminIndexConfig(params *paramtable.ComponentParam) {
+	enableInterminIndex := C.bool(params.QueryNodeCfg.EnableInterminSegmentIndex.GetAsBool())
+	C.SegcoreSetEnableInterminSegmentIndex(enableInterminIndex)
+
+	nlist := C.int64_t(params.QueryNodeCfg.InterimIndexNlist.GetAsInt64())
+	C.SegcoreSetNlist(nlist)
+
+	nprobe := C.int64_t(params.QueryNodeCfg.InterimIndexNProbe.GetAsInt64())
+	C.SegcoreSetNprobe(nprobe)
+
+	subDim := C.int64_t(params.QueryNodeCfg.InterimIndexSubDim.GetAsInt64())
+	C.SegcoreSetSubDim(subDim)
+
+	refineRatio := C.float(params.QueryNodeCfg.InterimIndexRefineRatio.GetAsFloat())
+	C.SegcoreSetRefineRatio(refineRatio)
+
+	withRawData := C.bool(params.QueryNodeCfg.InterminIndexWithRawData.GetAsBool())
+	C.SegcoreSetInterminIndexWithRawData(withRawData)
+}
+
 func CleanRemoteChunkManager() {
 	C.CleanRemoteChunkManagerSingleton()
 }
