@@ -2455,7 +2455,7 @@ type queryNodeConfig struct {
 	InterimIndexNProbe            ParamItem `refreshable:"false"`
 	InterimIndexSubDim            ParamItem `refreshable:"false"`
 	InterimIndexRefineRatio       ParamItem `refreshable:"false"`
-	InterminIndexWithRawData      ParamItem `refreshable:"false"`
+	DenseVectorInterminIndexType  ParamItem `refreshable:"false"`
 	InterimIndexMemExpandRate     ParamItem `refreshable:"false"`
 	InterimIndexBuildParallelRate ParamItem `refreshable:"false"`
 	MultipleChunkedEnable         ParamItem `refreshable:"false"`
@@ -2632,14 +2632,14 @@ This defaults to true, indicating that Milvus creates temporary index for growin
 	}
 	p.EnableInterminSegmentIndex.Init(base.mgr)
 
-	p.InterminIndexWithRawData = ParamItem{
-		Key:          "queryNode.segcore.interimIndex.withRawData",
+	p.DenseVectorInterminIndexType = ParamItem{
+		Key:          "queryNode.segcore.interimIndex.denseVectorIndexType",
 		Version:      "2.5.3",
-		DefaultValue: "true",
+		DefaultValue: "IVF_FLAT_CC",
 		Doc:          `Whether to keep raw data inside the intermin index`,
 		Export:       true,
 	}
-	p.InterminIndexWithRawData.Init(base.mgr)
+	p.DenseVectorInterminIndexType.Init(base.mgr)
 
 	p.KnowhereScoreConsistency = ParamItem{
 		Key:          "queryNode.segcore.knowhereScoreConsistency",

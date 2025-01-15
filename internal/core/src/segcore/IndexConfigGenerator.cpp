@@ -34,10 +34,8 @@ VecIndexConfig::VecIndexConfig(const int64_t max_index_row_cout,
         index_type_ = knowhere::IndexEnum::INDEX_SPARSE_WAND_CC;
     } else if (is_sparse_) {
         index_type_ = knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX_CC;
-    } else if (config_.get_intermin_index_with_raw_data_flag()) {
-        index_type_ = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC;
     } else {
-        index_type_ = knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR;
+        index_type_ = config.get_dense_vector_intermin_index_type();
     }
     build_params_[knowhere::meta::METRIC_TYPE] = metric_type_;
     build_params_[knowhere::indexparam::NLIST] =

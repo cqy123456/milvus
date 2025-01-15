@@ -13,6 +13,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include "common/type_c.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,8 +34,8 @@ SegcoreSetNlist(const int64_t);
 void
 SegcoreSetNprobe(const int64_t);
 
-void
-SegcoreSetInterminIndexWithRawData(const bool);
+CStatus
+SegcoreSetDenseVectorInterminIndexType(const char*);
 
 void
 SegcoreSetSubDim(const int64_t);

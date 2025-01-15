@@ -50,7 +50,6 @@ const (
 	AUTOINDEX  IndexType = "AUTOINDEX"
 	DISKANN    IndexType = "DISKANN"
 	SCANN      IndexType = "SCANN"
-	SCANNDVR   IndexType = "SCANN_DVR"
 
 	// Sparse
 	SparseInverted IndexType = "SPARSE_INVERTED_INDEX"

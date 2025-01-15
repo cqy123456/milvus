@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 #include <boost/format.hpp>
 #include <regex>
+#include <optional>
 
 #include "index/IndexFactory.h"
 #include "knowhere/comp/brute_force.h"
@@ -62,11 +63,11 @@ GetKnnSearchRecall(
 using Param = std::tuple<DataType,
                          knowhere::MetricType,
                          /* IndexType */ std::string,
-                         /* WithRawData*/ bool>;
+                         /* DenseVectorInterminIndexType*/ std::optional<std::string>>;
 class BinlogIndexTest : public ::testing::TestWithParam<Param> {
     void
     SetUp() override {
-        std::tie(data_type, metric_type, index_type, with_raw_data) =
+        std::tie(data_type, metric_type, index_type, dense_vec_intermin_index_type) =
             GetParam();
 
         schema = std::make_shared<Schema>();
@@ -150,7 +151,7 @@ class BinlogIndexTest : public ::testing::TestWithParam<Param> {
     milvus::SchemaPtr schema;
     knowhere::MetricType metric_type;
     DataType data_type;
-    bool with_raw_data = true;
+    std::optional<std::string> dense_vec_intermin_index_type = std::nullopt;
     std::string index_type;
     size_t data_n = 10000;
     size_t data_d = 128;
@@ -168,19 +169,19 @@ INSTANTIATE_TEST_SUITE_P(
         std::make_tuple(DataType::VECTOR_FLOAT,
                         knowhere::metric::L2,
                         knowhere::IndexEnum::INDEX_FAISS_IVFFLAT,
-                        true),
+                        knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC), // without field data 
         std::make_tuple(DataType::VECTOR_FLOAT,
                         knowhere::metric::L2,
                         knowhere::IndexEnum::INDEX_FAISS_IVFFLAT,
-                        false),
+                        knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR), // with field data 
         std::make_tuple(DataType::VECTOR_SPARSE_FLOAT,
                         knowhere::metric::IP,
-                        knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX,
-                        true),
+                        knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX,  // with field data 
+                        std::nullopt), 
         std::make_tuple(DataType::VECTOR_SPARSE_FLOAT,
                         knowhere::metric::IP,
-                        knowhere::IndexEnum::INDEX_SPARSE_WAND,
-                        true)));
+                        knowhere::IndexEnum::INDEX_SPARSE_WAND, // with field data 
+                        std::nullopt)));
 
 TEST_P(BinlogIndexTest, AccuracyWithLoadFieldData) {
     IndexMetaPtr collection_index_meta = GetCollectionIndexMeta(index_type);
@@ -190,7 +191,9 @@ TEST_P(BinlogIndexTest, AccuracyWithLoadFieldData) {
 
     auto& segcore_config = milvus::segcore::SegcoreConfig::default_config();
     segcore_config.set_enable_interim_segment_index(true);
-    segcore_config.set_intermin_index_with_raw_data_flag(with_raw_data);
+    if (dense_vec_intermin_index_type.has_value()) {
+         segcore_config.set_dense_vector_intermin_index_type(dense_vec_intermin_index_type.value());
+    }
     segcore_config.set_nprobe(32);
     // 1. load field data, and build binlog index for binlog data
     auto field_data_info = FieldDataInfo{
@@ -200,12 +203,11 @@ TEST_P(BinlogIndexTest, AccuracyWithLoadFieldData) {
     //assert segment has been built binlog index
     EXPECT_TRUE(segment->HasIndex(vec_field_id));
     EXPECT_EQ(segment->get_row_count(), data_n);
-    if (with_raw_data) {
+    if (dense_vec_intermin_index_type.has_value() && dense_vec_intermin_index_type.value() == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC) {
         EXPECT_FALSE(segment->HasFieldData(vec_field_id));
     } else {
         EXPECT_TRUE(segment->HasFieldData(vec_field_id));
     }
-
     // 2. search binlog index
     auto num_queries = 10;
 
@@ -289,7 +291,9 @@ TEST_P(BinlogIndexTest, AccuracyWithMapFieldData) {
 
     auto& segcore_config = milvus::segcore::SegcoreConfig::default_config();
     segcore_config.set_enable_interim_segment_index(true);
-    segcore_config.set_intermin_index_with_raw_data_flag(with_raw_data);
+    if (dense_vec_intermin_index_type.has_value()) {
+         segcore_config.set_dense_vector_intermin_index_type(dense_vec_intermin_index_type.value());
+    }
     segcore_config.set_nprobe(32);
     // 1. load field data, and build binlog index for binlog data
     FieldDataInfo field_data_info;
@@ -303,8 +307,10 @@ TEST_P(BinlogIndexTest, AccuracyWithMapFieldData) {
     //assert segment has been built binlog index
     EXPECT_TRUE(segment->HasIndex(vec_field_id));
     EXPECT_EQ(segment->get_row_count(), data_n);
-    if (with_raw_data == true) {
+    if (dense_vec_intermin_index_type.has_value() && dense_vec_intermin_index_type.value() == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC) {
         EXPECT_FALSE(segment->HasFieldData(vec_field_id));
+    } else {
+        EXPECT_TRUE(segment->HasFieldData(vec_field_id));
     }
 
     // 2. search binlog index

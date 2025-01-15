@@ -434,7 +434,8 @@ class IndexingRecord {
             const FieldIndexing& indexing = get_field_indexing(fieldId);
             return indexing.has_raw_data();
         }
-        return true;
+        // if this field id not in IndexingRecord or not build index, we should find raw data in InsertRecord instead of IndexingRecord.
+        return false;
     }
 
     // concurrent

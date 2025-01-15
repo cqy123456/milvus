@@ -247,7 +247,10 @@ func (node *QueryNode) InitSegcore() error {
 		return err
 	}
 
-	initcore.InitInterminIndexConfig(paramtable.Get())
+	err = initcore.InitInterminIndexConfig(paramtable.Get())
+	if err != nil {
+		return err
+	}
 
 	initcore.InitTraceConfig(paramtable.Get())
 	C.InitExecExpressionFunctionFactory()

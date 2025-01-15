@@ -24,27 +24,36 @@ using namespace milvus;
 using namespace milvus::segcore;
 namespace pb = milvus::proto;
 
-using Param = std::tuple</*index type*/ std::string,
-                         knowhere::MetricType,
-                         /*with raw data*/ bool>;
+using Param = std::tuple< DataType,
+                         /*index type*/ std::string,
+                           knowhere::MetricType,
+                         /*dense vector index type*/ std::optional<std::string>>;
 
 class GrowingIndexTest : public ::testing::TestWithParam<Param> {
     void
     SetUp() override {
         auto param = GetParam();
-        index_type = std::get<0>(param);
-        metric_type = std::get<1>(param);
-        with_raw_data = std::get<2>(param);
-        if (index_type == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT ||
-            index_type == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC) {
-            data_type = DataType::VECTOR_FLOAT;
-        } else if (index_type ==
-                       knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX ||
-                   index_type == knowhere::IndexEnum::INDEX_SPARSE_WAND) {
-            data_type = DataType::VECTOR_SPARSE_FLOAT;
+        data_type = std::get<0>(param);
+        index_type = std::get<1>(param);
+        metric_type = std::get<2>(param);
+        dense_vec_intermin_index_type = std::get<3>(param);
+        if (data_type == DataType::VECTOR_SPARSE_FLOAT) {
             is_sparse = true;
+            if (metric_type == knowhere::metric::IP) {
+                intermin_index_with_raw_data = true;
+            } else {
+                intermin_index_with_raw_data = false;
+            }
         } else {
-            ASSERT_TRUE(false);
+            if (!dense_vec_intermin_index_type.has_value()) {
+                dense_vec_intermin_index_type = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC;
+            }
+            if (dense_vec_intermin_index_type.value() == knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC) {
+                intermin_index_with_raw_data = true;
+            } else {
+                // scann dvr index
+                intermin_index_with_raw_data = false;
+            }
         }
     }
 
@@ -52,7 +61,8 @@ class GrowingIndexTest : public ::testing::TestWithParam<Param> {
     std::string index_type;
     knowhere::MetricType metric_type;
     DataType data_type;
-    bool with_raw_data;
+    std::optional<std::string> dense_vec_intermin_index_type = knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC;
+    bool intermin_index_with_raw_data;
     bool is_sparse = false;
 };
 
@@ -60,21 +70,36 @@ INSTANTIATE_TEST_SUITE_P(
     FloatIndexTypeParameters,
     GrowingIndexTest,
     ::testing::Combine(
+        ::testing::Values(DataType::VECTOR_FLOAT),
         ::testing::Values(knowhere::IndexEnum::INDEX_FAISS_IVFFLAT,
                           knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC),
         ::testing::Values(knowhere::metric::L2,
                           knowhere::metric::COSINE,
                           knowhere::metric::IP),
-        ::testing::Values(true, false)));
+        ::testing::Values(knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC, knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR)));
 
 INSTANTIATE_TEST_SUITE_P(
     SparseIndexTypeParameters,
     GrowingIndexTest,
     ::testing::Combine(
+        ::testing::Values(DataType::VECTOR_SPARSE_FLOAT),
         ::testing::Values(knowhere::IndexEnum::INDEX_SPARSE_INVERTED_INDEX,
                           knowhere::IndexEnum::INDEX_SPARSE_WAND),
-        ::testing::Values(knowhere::metric::IP),
-        ::testing::Values(true)));
+        ::testing::Values(knowhere::metric::IP, knowhere::metric::BM25), // when metric == IP, growing segment will keep data in intermin index
+        ::testing::Values(std::nullopt)));
+
+INSTANTIATE_TEST_SUITE_P(
+    HalfFloatIndexTypeParameters,
+    GrowingIndexTest,
+    ::testing::Combine(
+        ::testing::Values(DataType::VECTOR_FLOAT16, DataType::VECTOR_BFLOAT16),
+        ::testing::Values(knowhere::IndexEnum::INDEX_FAISS_IVFFLAT,
+                          knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC),
+        ::testing::Values(knowhere::metric::L2,
+                          knowhere::metric::COSINE,
+                          knowhere::metric::IP),
+        ::testing::Values(knowhere::IndexEnum::INDEX_FAISS_IVFFLAT_CC, knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR)));
+
 
 TEST_P(GrowingIndexTest, Correctness) {
     auto schema = std::make_shared<Schema>();
@@ -93,10 +118,12 @@ TEST_P(GrowingIndexTest, Correctness) {
     auto& config = SegcoreConfig::default_config();
     config.set_chunk_rows(1024);
     config.set_enable_interim_segment_index(true);
-    config.set_intermin_index_with_raw_data_flag(with_raw_data);
-    if (with_raw_data) {
-        auto nlist = config.get_nlist();
-        config.set_nprobe(int(0.3 * nlist));
+    if (dense_vec_intermin_index_type.has_value()) {
+        config.set_dense_vector_intermin_index_type(dense_vec_intermin_index_type.value());
+        if (dense_vec_intermin_index_type.value() == knowhere::IndexEnum::INDEX_FAISS_SCANN_DVR) {
+            auto nlist = config.get_nlist();
+            config.set_nprobe(int(0.3 * nlist));
+        }
     }
     std::map<FieldId, FieldIndexMeta> filedMap = {{vec, fieldIndexMeta}};
     IndexMetaPtr metaPtr =
@@ -174,7 +201,8 @@ TEST_P(GrowingIndexTest, Correctness) {
         // get_build_threshold(). This value for sparse is 0, thus sparse index
         // will be built since the first chunk. Dense segment buffers the first
         // 2 chunks before building an index in this test case.
-        if ((!is_sparse && i < 2) || (!with_raw_data)) {
+
+        if ((!is_sparse && i < 2) || !intermin_index_with_raw_data) {
             EXPECT_EQ(field_data->num_chunk(),
                       upper_div(inserted, field_data->get_size_per_chunk()));
         } else {
@@ -251,7 +279,9 @@ TEST_P(GrowingIndexTest, GetVector) {
     auto& config = SegcoreConfig::default_config();
     config.set_chunk_rows(1024);
     config.set_enable_interim_segment_index(true);
-    config.set_intermin_index_with_raw_data_flag(with_raw_data);
+    if (dense_vec_intermin_index_type.has_value()) {
+     config.set_dense_vector_intermin_index_type(dense_vec_intermin_index_type.value());
+    }
     std::map<FieldId, FieldIndexMeta> filedMap = {{vec, fieldIndexMeta}};
     IndexMetaPtr metaPtr =
         std::make_shared<CollectionIndexMeta>(100000, std::move(filedMap));

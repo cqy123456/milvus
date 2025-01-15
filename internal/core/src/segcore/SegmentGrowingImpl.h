@@ -236,13 +236,9 @@ class SegmentGrowingImpl : public SegmentGrowing {
                                 IndexMetaPtr indexMeta,
                                 const SegcoreConfig& segcore_config,
                                 int64_t segment_id)
-        : mmap_descriptor_(storage::MmapManager::GetInstance()
-                                   .GetMmapConfig()
-                                   .GetEnableGrowingMmap()
-                               ? storage::MmapChunkDescriptorPtr(
+        : mmap_descriptor_(storage::MmapChunkDescriptorPtr(
                                      new storage::MmapChunkDescriptor(
-                                         {segment_id, SegmentType::Growing}))
-                               : nullptr),
+                                         {segment_id, SegmentType::Growing}))),
           segcore_config_(segcore_config),
           schema_(std::move(schema)),
           index_meta_(indexMeta),
@@ -252,13 +248,11 @@ class SegmentGrowingImpl : public SegmentGrowing {
               *schema_, index_meta_, segcore_config_, &insert_record_),
           id_(segment_id),
           deleted_record_(&insert_record_, this) {
-        if (mmap_descriptor_ != nullptr) {
-            LOG_INFO("growing segment {} use mmap to hold raw data",
-                     this->get_segment_id());
-            auto mcm =
-                storage::MmapManager::GetInstance().GetMmapChunkManager();
-            mcm->Register(mmap_descriptor_);
-        }
+
+        auto mcm =
+            storage::MmapManager::GetInstance().GetMmapChunkManager();
+        mcm->Register(mmap_descriptor_);
+        
         this->CreateTextIndexes();
     }
 
@@ -318,12 +312,15 @@ class SegmentGrowingImpl : public SegmentGrowing {
         // 3. growing index enabled and it not holds raw data, then raw data held by chunk
         if (indexing_record_.is_in(FieldId(field_id))) {
             if (indexing_record_.HasRawData(FieldId(field_id))) {
+                // 1. growing index enabled and it holds raw data
                 return true;
             } else {
+                // 3. growing index enabled and it not holds raw data, then raw data held by chunk
                 return insert_record_.get_data_base(FieldId(field_id))
                            ->num_chunk() > 0;
             }
         }
+        // 2. growing index disabled then raw data held by chunk
         return true;
     }
 

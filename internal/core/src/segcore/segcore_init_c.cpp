@@ -54,11 +54,19 @@ SegcoreSetNprobe(const int64_t value) {
     config.set_nprobe(value);
 }
 
-extern "C" void
-SegcoreSetInterminIndexWithRawData(const bool value) {
+extern "C" CStatus
+SegcoreSetDenseVectorInterminIndexType(const char* value) {
     milvus::segcore::SegcoreConfig& config =
         milvus::segcore::SegcoreConfig::default_config();
-    config.set_intermin_index_with_raw_data_flag(value);
+    try {
+        config.set_dense_vector_intermin_index_type(std::string(value));
+        auto status = CStatus();
+        status.error_code = Success;
+        status.error_msg = "";
+        return status;
+    } catch (std::exception& e) {
+        return milvus::FailureCStatus(&e);
+    }
 }
 
 extern "C" void
