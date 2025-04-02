@@ -320,8 +320,8 @@ mod test {
 
     use tantivy::{
         doc,
-        schema::{Schema, STORED, STRING},
-        Index,
+        schema::{self, Schema, STORED, STRING, TEXT},
+        Index, IndexWriter,
     };
 
     use super::IndexReaderWrapper;
