@@ -25,6 +25,8 @@ const (
 	// COSINE represents cosine distance
 	COSINE MetricType = "COSINE"
 
+	MHJACCARD MetricType = "MHJACCARD"
+
 	// HAMMING represents hamming distance
 	HAMMING MetricType = "HAMMING"
 

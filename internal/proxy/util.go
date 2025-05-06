@@ -688,7 +688,7 @@ func isVector(dataType schemapb.DataType) (bool, error) {
 func validateMetricType(dataType schemapb.DataType, metricTypeStrRaw string) error {
 	metricTypeStr := strings.ToUpper(metricTypeStrRaw)
 	switch metricTypeStr {
-	case metric.L2, metric.IP, metric.COSINE:
+	case metric.L2, metric.IP, metric.COSINE, metric.MHJACCARD:
 		if typeutil.IsFloatVectorType(dataType) {
 			return nil
 		}

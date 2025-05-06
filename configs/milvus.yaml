@@ -404,8 +404,8 @@ queryNode:
       # Whether to create a temporary index for growing segments and sealed segments not yet indexed, improving search performance.
       # Milvus will eventually seals and indexes all segments, but enabling this optimizes search performance for immediate queries following data insertion.
       # This defaults to true, indicating that Milvus creates temporary index for growing segments and the sealed segments that are not indexed upon searches.
-      enableIndex: true
-      nlist: 128 # interim index nlist, recommend to set sqrt(chunkRows), must smaller than chunkRows/8
+      enableIndex: false
+      nlist: 128 # temp index nlist, recommend to set sqrt(chunkRows), must smaller than chunkRows/8
       nprobe: 16 # nprobe to search small index, based on your accuracy requirement, must smaller than nlist
       subDim: 4 # interim index sub dim, recommend to (subDim % vector dim == 0)
       refineRatio: 4.5 # interim index parameters, should set to be >= 1.0
@@ -841,7 +841,7 @@ common:
     BeamWidthRatio: 4
   gracefulTime: 5000 # milliseconds. it represents the interval (in ms) by which the request arrival time needs to be subtracted in the case of Bounded Consistency.
   gracefulStopTimeout: 1800 # seconds. it will force quit the server if the graceful stop process is not completed during this time.
-  storageType: remote # please adjust in embedded Milvus: local, available values are [local, remote, opendal], value minio is deprecated, use remote instead
+  storageType: local # please adjust in embedded Milvus: local, available values are [local, remote, opendal], value minio is deprecated, use remote instead
   # Default value: auto
   # Valid values: [auto, avx512, avx2, avx, sse4_2]
   # This configuration is only used by querynode and indexnode, it selects CPU instruction set for Searching and Index-building.
