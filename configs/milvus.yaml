@@ -418,6 +418,7 @@ queryNode:
       denseVectorIndexType: IVF_FLAT_CC # Dense vector intermin index type
       memExpansionRate: 1.15 # extra memory needed by building interim index
       buildParallelRate: 0.5 # the ratio of building interim index parallel matched with cpu num
+      indexBuildRatio: 0.05 # the ratio of building interim index rows count with max row count of a flush segment
     multipleChunkedEnable: true # Enable multiple chunked search
     knowhereScoreConsistency: false # Enable knowhere strong consistency score computation logic
     jsonKeyStatsCommitInterval: 200 # the commit interval for the JSON key Stats to commit

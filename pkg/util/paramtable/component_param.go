@@ -2608,6 +2608,7 @@ type queryNodeConfig struct {
 	InterimIndexNProbe            ParamItem `refreshable:"false"`
 	InterimIndexSubDim            ParamItem `refreshable:"false"`
 	InterimIndexRefineRatio       ParamItem `refreshable:"false"`
+	InterimIndexBuildRatio        ParamItem `refreshable:"false"`
 	InterimIndexRefineQuantType   ParamItem `refreshable:"false"`
 	InterimIndexRefineWithQuant   ParamItem `refreshable:"false"`
 	DenseVectorInterminIndexType  ParamItem `refreshable:"false"`
@@ -2931,6 +2932,21 @@ This defaults to true, indicating that Milvus creates temporary index for growin
 		Export:       true,
 	}
 	p.InterimIndexRefineRatio.Init(base.mgr)
+
+	p.InterimIndexBuildRatio = ParamItem{
+		Key:     "queryNode.segcore.interimIndex.indexBuildRatio",
+		Version: "2.5.16",
+		Formatter: func(v string) string {
+			if getAsFloat(v) > 1.0 {
+				return "0.1"
+			}
+			return v
+		},
+		DefaultValue: "0.05",
+		Doc:          "interim index parameters, should set to be < 1.0",
+		Export:       true,
+	}
+	p.InterimIndexBuildRatio.Init(base.mgr)
 
 	p.LoadMemoryUsageFactor = ParamItem{
 		Key:          "queryNode.loadMemoryUsageFactor",
