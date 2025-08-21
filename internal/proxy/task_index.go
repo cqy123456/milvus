@@ -272,9 +272,16 @@ func (cit *createIndexTask) parseIndexParams(ctx context.Context) error {
 					indexParamsMap[k] = v
 				}
 			} else if typeutil.IsBinaryVectorType(cit.fieldSchema.DataType) {
-				// override binary vector index params by autoindex
-				for k, v := range Params.AutoIndexConfig.BinaryIndexParams.GetAsJSONMap() {
-					indexParamsMap[k] = v
+				if funcutil.SliceContain(indexparamcheck.DeduplicateMetrics, metricType) {
+					// override binary vector index params by autoindex deduplicate params
+					for k, v := range Params.AutoIndexConfig.DeduplicateIndexParams.GetAsJSONMap() {
+						indexParamsMap[k] = v
+					}
+				} else {
+					// override binary vector index params by autoindex
+					for k, v := range Params.AutoIndexConfig.BinaryIndexParams.GetAsJSONMap() {
+						indexParamsMap[k] = v
+					}
 				}
 			}
 
@@ -333,8 +340,12 @@ func (cit *createIndexTask) parseIndexParams(ctx context.Context) error {
 				// override sparse float vector index params by autoindex
 				config = Params.AutoIndexConfig.SparseIndexParams.GetAsJSONMap()
 			} else if typeutil.IsBinaryVectorType(cit.fieldSchema.DataType) {
-				// override binary vector index params by autoindex
-				config = Params.AutoIndexConfig.BinaryIndexParams.GetAsJSONMap()
+				if funcutil.SliceContain(indexparamcheck.DeduplicateMetrics, metricType) {
+					config = Params.AutoIndexConfig.DeduplicateIndexParams.GetAsJSONMap()
+				} else {
+					// override binary vector index params by autoindex
+					config = Params.AutoIndexConfig.BinaryIndexParams.GetAsJSONMap()
+				}
 			}
 			if !exist {
 				if err := handle(0, config); err != nil {
