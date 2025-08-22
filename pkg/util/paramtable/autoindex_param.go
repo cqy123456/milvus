@@ -39,6 +39,7 @@ type AutoIndexConfig struct {
 	SparseIndexParams      ParamItem  `refreshable:"true"`
 	BinaryIndexParams      ParamItem  `refreshable:"true"`
 	DeduplicateIndexParams ParamItem  `refreshable:"true"`
+	EnableDeduplicateIndex ParamItem  `refreshable:"true"`
 	PrepareParams          ParamItem  `refreshable:"true"`
 	LoadAdaptParams        ParamItem  `refreshable:"true"`
 	ExtraParams            ParamItem  `refreshable:"true"`
@@ -117,6 +118,13 @@ func (p *AutoIndexConfig) init(base *BaseTable) {
 		Export:       true,
 	}
 	p.DeduplicateIndexParams.Init(base.mgr)
+
+	p.EnableDeduplicateIndex = ParamItem{
+		Key:          "autoIndex.params.deduplicate.enable",
+		Version:      "2.5.18",
+		DefaultValue: "false",
+		PanicIfEmpty: false,
+	}
 
 	p.PrepareParams = ParamItem{
 		Key:     "autoIndex.params.prepare",
