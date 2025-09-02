@@ -125,6 +125,7 @@ func (p *AutoIndexConfig) init(base *BaseTable) {
 		DefaultValue: "false",
 		PanicIfEmpty: false,
 	}
+	p.EnableDeduplicateIndex.Init(base.mgr)
 
 	p.PrepareParams = ParamItem{
 		Key:     "autoIndex.params.prepare",
