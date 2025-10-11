@@ -310,6 +310,120 @@ func Test_sparse_parseIndexParams(t *testing.T) {
 	})
 }
 
+func Test_deduplicate_parseIndexParams(t *testing.T) {
+	cit1 := &createIndexTask{
+		Condition: nil,
+		req: &milvuspb.CreateIndexRequest{
+			Base:           nil,
+			DbName:         "",
+			CollectionName: "",
+			FieldName:      "",
+			ExtraParams: []*commonpb.KeyValuePair{
+				{
+					Key:   MetricTypeKey,
+					Value: "MHJACCARD",
+				},
+				{
+					Key:   DimKey,
+					Value: "128",
+				},
+			},
+			IndexName: "",
+		},
+		ctx:            nil,
+		rootCoord:      nil,
+		result:         nil,
+		isAutoIndex:    false,
+		newIndexParams: nil,
+		newTypeParams:  nil,
+		collectionID:   0,
+		fieldSchema: &schemapb.FieldSchema{
+			FieldID:      101,
+			Name:         "FieldID",
+			IsPrimaryKey: false,
+			Description:  "field no.1",
+			DataType:     schemapb.DataType_BinaryVector,
+			TypeParams: []*commonpb.KeyValuePair{
+				{
+					Key:   MetricTypeKey,
+					Value: "MHJACCARD",
+				},
+				{
+					Key:   DimKey,
+					Value: "128",
+				},
+			},
+		},
+	}
+
+	cit2 := &createIndexTask{
+		Condition: nil,
+		req: &milvuspb.CreateIndexRequest{
+			Base:           nil,
+			DbName:         "",
+			CollectionName: "",
+			FieldName:      "",
+			ExtraParams: []*commonpb.KeyValuePair{
+				{
+					Key:   MetricTypeKey,
+					Value: "MHJACCARD",
+				},
+				{
+					Key:   DimKey,
+					Value: "128",
+				},
+			},
+			IndexName: "",
+		},
+		ctx:            nil,
+		rootCoord:      nil,
+		result:         nil,
+		isAutoIndex:    true,
+		newIndexParams: nil,
+		newTypeParams:  nil,
+		collectionID:   0,
+		fieldSchema: &schemapb.FieldSchema{
+			FieldID:      101,
+			Name:         "FieldID",
+			IsPrimaryKey: false,
+			Description:  "field no.1",
+			DataType:     schemapb.DataType_BinaryVector,
+			TypeParams: []*commonpb.KeyValuePair{
+				{
+					Key:   MetricTypeKey,
+					Value: "MHJACCARD",
+				},
+				{
+					Key:   DimKey,
+					Value: "128",
+				},
+			},
+		},
+	}
+
+	t.Run("parse index params", func(t *testing.T) {
+		err := cit1.parseIndexParams(context.TODO())
+		assert.NoError(t, err)
+
+		assert.ElementsMatch(t,
+			[]*commonpb.KeyValuePair{
+				{
+					Key:   common.IndexTypeKey,
+					Value: "MINHASH_LSH",
+				},
+				{
+					Key:   MetricTypeKey,
+					Value: "MHJACCARD",
+				},
+			}, cit1.newIndexParams)
+		assert.ElementsMatch(t,
+			[]*commonpb.KeyValuePair{}, cit1.newTypeParams)
+
+		err := cit2.parseIndexParams(context.TODO())
+		assert.Error(t, err)
+	})
+}
+
 func Test_parseIndexParams(t *testing.T) {
 	cit := &createIndexTask{
 		Condition: nil,
